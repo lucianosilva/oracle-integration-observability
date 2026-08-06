@@ -2,28 +2,28 @@
 
 ## 1. Purpose
 
-This document describes how a parent Oracle Integration flow should register an error with `OIO_LOG_EVENT` while preserving the original business or technical fault.
+This document is the source of truth for registering an error in OIO while preserving the original Oracle Integration fault.
 
 The governing rule is:
 
 > A logging failure must not replace or hide the original business or technical fault.
 
-The pattern applies to `OIO_SAMPLE_BUSINESS_FLOW` and can be adopted by production parent integrations.
+Contract fields are defined in the [logging contract](../docs/logging-contract.md), and their OIC mapping is defined in the [mapping reference](mapping-reference.md).
 
-## 2. Scope and global handlers
+## 2. Handler placement
 
-OIO can be invoked from:
+Invoke OIO from:
 
-- a scope fault handler when the error belongs to a specific business step;
-- a global fault handler when the integration needs a final common error path;
-- an explicit business-error branch before a technical fault is thrown;
-- a retry or reprocessing flow that appends a new transaction status.
+- a scope fault handler when the failing business step requires precise context;
+- a global fault handler for final integration-level handling;
+- an explicit business-error branch when no adapter fault is raised;
+- a retry or reprocessing flow when appending a later status event.
 
-Prefer a scope fault handler when it can provide more precise context, such as the failed target operation or current business step. Use a global handler for final integration-level handling and errors not addressed by a more specific scope.
+Prefer the narrowest handler that still has the required business context.
 
-## 3. Available fault context
+## 3. Fault context
 
-Oracle Integration provides fault functions that can be used in the Expression Builder, including:
+Oracle Integration fault functions may provide diagnostic values such as:
 
 ```text
 getFaultAsString()
@@ -33,280 +33,201 @@ getFaultedActionName()
 getFlowId()
 ```
 
-These values are diagnostic inputs. They must be reviewed and sanitized before persistence.
-
 Suggested use:
 
 | Function | OIO use |
 |---|---|
 | `getFlowId()` | `oicInstanceId` |
 | `getFaultName()` | Candidate `errorCode` |
-| `getFaultedActionName()` | Optional summary or configured attribute |
-| `getFaultAsString()` | Candidate source for a sanitized `errorMessage` |
+| `getFaultedActionName()` | Failed-step context |
+| `getFaultAsString()` | Source for a sanitized `errorMessage` |
 | `getFaultAsXML()` | Optional source for a reduced diagnostic payload |
 
-Do not automatically store the complete fault XML or string in a CLOB.
+These values are diagnostic inputs, not content that should automatically be persisted in full.
 
-## 4. Main pattern
+## 4. Core pattern
 
 ```mermaid
 sequenceDiagram
-    participant Parent as Parent business integration
+    participant Parent as Parent integration
     participant Target as Target service
-    participant Handler as Scope or global fault handler
+    participant Handler as Fault handler
     participant Logger as OIO_LOG_EVENT
     participant DB as OIO_TRACE_API
 
     Parent->>Target: Business invocation
     Target-->>Handler: Original fault
-    Handler->>Handler: Capture original fault context
-    Handler->>Handler: Build sanitized flat OIO payload
+    Handler->>Handler: Capture original fault and business context
+    Handler->>Handler: Build sanitized OIO error payload
 
     alt Logger succeeds
-        Handler->>Logger: CreateTrace
-        Logger->>DB: PR_CREATE_TRACE_LOG
+        Handler->>Logger: CreateTrace or UpdateTransactionStatus
+        Logger->>DB: Persist event
         DB-->>Logger: Completed
         Logger-->>Handler: SUCCESS
     else Logger fails
-        Handler->>Logger: CreateTrace
-        Logger-->>Handler: Logging fault
+        Handler->>Logger: Logging attempt
+        Logger-->>Handler: Logger fault
         Handler->>Handler: Preserve original fault
     end
 
     Handler-->>Parent: Rethrow original fault
 ```
 
-## 5. Handler implementation steps
+## 5. Implementation steps
 
-### Step 1: capture the original fault
+### 5.1 Capture the original fault
 
-Before invoking the logger, assign the original fault values to variables that will not be replaced by a later logger fault.
+Before invoking the logger, assign the original fault values to variables that will not be overwritten by a later logger fault.
 
-Capture only the values needed for:
+Capture only what is required to:
 
-- rethrowing the original fault;
-- producing a concise OIO summary;
-- deriving an error code;
-- identifying the failed action;
-- creating an approved diagnostic representation.
+- rethrow the original fault;
+- identify the failed action;
+- derive a concise error code and message;
+- build an approved diagnostic representation.
 
-### Step 2: preserve business context
+### 5.2 Preserve business context
 
-The handler should retain the business values assigned before the failing invoke:
+Business identifiers and configured attributes should already be available before the failing invoke.
 
-```text
-integrationKey
-correlationId
-transactionId1
-transactionId2
-transactionId3
-attr1Value through attr10Value
-```
+Do not attempt to reconstruct transaction identifiers from the fault text.
 
-Do not depend on fault text to reconstruct business identifiers.
+### 5.3 Build the OIO error payload
 
-### Step 3: build the flat error payload
-
-Recommended values:
+Typical values are:
 
 ```text
 logLevel = E
 transactionStatus = FAILED
 ```
 
-Example:
-
-```json
-{
-  "integrationKey": "SCM_PO_SYNC",
-  "correlationId": "REQ-20260805-00041",
-  "oicInstanceId": "987654321001",
-  "userName": "OIC",
-  "logLevel": "E",
-  "summary": "Purchase order synchronization failed at the target invocation.",
-  "errorCode": "TARGET_INVOCATION_FAULT",
-  "errorMessage": "The target service was unavailable.",
-  "attr1Value": "PO-100045",
-  "attr2Value": "SOURCE-REQ-8841",
-  "attr3Value": null,
-  "attr4Value": null,
-  "attr5Value": null,
-  "attr6Value": null,
-  "attr7Value": null,
-  "attr8Value": null,
-  "attr9Value": null,
-  "attr10Value": null,
-  "transactionId1": "PO-100045",
-  "transactionId2": "SOURCE-REQ-8841",
-  "transactionId3": "SYNC-BATCH-20260805-01",
-  "transactionStatus": "FAILED",
-  "requestPayload": null,
-  "responsePayload": null
-}
-```
-
-The error code and message above are illustrative. The actual mapping should use approved error-classification rules.
-
-### Step 4: sanitize diagnostic content
-
-Before assigning fault content:
-
-- remove access tokens and authorization headers;
-- remove credentials, private keys, and connection strings;
-- mask personal, financial, and regulated data;
-- avoid complete stack traces when a short diagnostic description is sufficient;
-- avoid raw request and response bodies unless retention was reviewed and approved;
-- respect country-specific privacy and retention requirements;
-- retain only what is necessary for support.
-
-### Step 5: invoke `OIO_LOG_EVENT`
-
-Use:
+Choose between:
 
 ```text
 OIO_LOG_EVENT.CreateTrace
+OIO_LOG_EVENT.UpdateTransactionStatus
 ```
 
-Place this call inside a nested scope or equivalent error boundary so a logging fault can be handled separately from the original target fault.
+Use `CreateTrace` when no OIO master trace exists. Use `UpdateTransactionStatus` when the transaction already has a trace and the supplied identifiers can locate it reliably.
 
-### Step 6: handle a logger fault
+The exact field definitions and mandatory values are maintained in the [logging contract](../docs/logging-contract.md).
 
-When the logger fails:
+### 5.4 Sanitize diagnostic content
 
-- do not overwrite the stored original fault variables;
-- do not call `OIO_LOG_EVENT` again from its own error path;
-- do not enter an unbounded retry loop;
-- optionally write a native OIC tracking note or approved notification;
-- apply only the fallback behavior approved by the project;
-- continue to the original-fault rethrow path.
+Before persistence:
 
-A logger failure may justify an operational alert, but it must not masquerade as the original business failure.
+- remove credentials, tokens, authorization headers, and connection strings;
+- mask personal, financial, confidential, and regulated data;
+- retain only the diagnostic content required for support;
+- follow the repository [security considerations](../README.md#security-considerations).
 
-### Step 7: rethrow the original fault
+Payload persistence is optional.
 
-After the logging attempt, use a rethrow action or the project's approved error response pattern to preserve the original business or technical outcome.
+### 5.5 Invoke the logger inside a separate error boundary
 
-The parent integration should not return success merely because the error was recorded.
+Place the call to `OIO_LOG_EVENT` inside a nested scope or equivalent boundary so that a logger fault can be handled independently.
+
+Do not invoke `OIO_LOG_EVENT` again from that logger-fault path.
+
+### 5.6 Handle a logger fault
+
+When the logging call fails:
+
+1. Keep the stored original fault unchanged.
+2. Do not enter an unbounded retry loop.
+3. Optionally create an approved native OIC tracking note or external operational notification.
+4. Continue to the original-fault outcome.
+
+A logger failure may require an alert, but it must not become the fault returned in place of the original business failure.
+
+### 5.7 Rethrow the original fault
+
+After the logging attempt, use the project's approved rethrow or error-response pattern.
+
+The parent integration must not return success merely because the fault was recorded.
 
 ## 6. Business errors
 
-Not every business error arrives as an adapter fault.
-
-Examples:
-
-- failed validation;
-- rejected transaction;
-- duplicate business document;
-- missing mandatory reference data;
-- approval denied.
+Business validation failures may occur without an adapter fault.
 
 For an explicit business-error branch:
 
-1. Build the error payload.
-2. Use `logLevel = E`.
-3. Set a meaningful business status such as `REJECTED` or `FAILED`.
-4. Invoke `OIO_LOG_EVENT.CreateTrace` or append a status update, depending on whether the trace already exists.
-5. Return or throw the business error expected by the caller.
+1. Assign a meaningful business error code and status.
+2. Build the OIO error payload.
+3. Create the trace or append a status event.
+4. Return or throw the expected business error.
 
-Do not convert every business rejection into a generic technical fault.
+Do not classify every rejected transaction as an infrastructure failure.
 
-## 7. Existing trace versus new trace
+## 7. Retry and recovery
 
-Use `CreateTrace` when:
+Treat these decisions separately:
 
-- no OIO master trace exists for the business transaction;
-- the error is the first persisted event in the OIO lifecycle;
-- the flow is creating the initial observability record.
+- retrying the target operation;
+- retrying the logger call;
+- reprocessing the business transaction;
+- appending a later recovery status.
 
-Use `UpdateTransactionStatus` when:
+Avoid retry behavior that multiplies database calls or significantly delays the original transaction without an approved design.
 
-- the trace was created earlier;
-- the transaction identifiers can locate it reliably;
-- the new error or recovery state is part of the same lifecycle.
+When a later retry succeeds, append a business-defined recovery status such as `RESOLVED` only when it belongs to that integration's documented lifecycle.
 
-Example:
+## 8. Prevent recursive logging
 
-```text
-RECEIVED -> IN_PROGRESS -> FAILED -> RESOLVED
-```
+`OIO_LOG_EVENT` must not call itself from its own fault handler.
 
-The repository's current status-update procedure may affect multiple traces if the provided identifier combination is not unique.
+Recursive logging can cause duplicate events, increased load during an outage, loops, and loss of the original context. The logger's own failure should rely on native OIC monitoring and an approved operational notification mechanism.
 
-## 8. Retry behavior
+## 9. Validation scenarios
 
-Retry policy must be explicit.
+### Target technical fault
 
-Consider separately:
-
-- retrying the original target operation;
-- retrying the logger invocation;
-- appending a later OIO status event;
-- reprocessing the business transaction.
-
-Do not let logging retries significantly delay or multiply a failing business transaction without an approved design.
-
-When a business retry succeeds, append a status such as `RESOLVED` only if that status is part of the documented lifecycle for the integration.
-
-## 9. Avoid recursive logging
-
-`OIO_LOG_EVENT` must not invoke itself from its own global fault handler.
-
-A recursive pattern can cause:
-
-- repeated database calls;
-- duplicate events;
-- increased load during an outage;
-- loss of the original fault context;
-- difficult-to-diagnose loops.
-
-The logger's own failure path should use native OIC monitoring and an approved external operational mechanism when necessary.
-
-## 10. Validation scenarios
-
-### Technical target fault
-
-- [ ] Target invoke fails.
-- [ ] Original fault values are captured.
-- [ ] OIO receives `logLevel = E`.
-- [ ] The OIO row contains business identifiers.
+- [ ] The target invoke fails.
+- [ ] The original fault is captured.
+- [ ] Business identifiers remain available.
+- [ ] OIO receives an error event.
 - [ ] The original target fault is rethrown.
 
 ### Business validation error
 
-- [ ] Business error code is preserved.
-- [ ] Business status is meaningful.
-- [ ] Error is not mislabeled as infrastructure failure.
-- [ ] Caller receives the expected business response.
+- [ ] The business code and status are preserved.
+- [ ] The error is not mislabeled as an infrastructure failure.
+- [ ] The caller receives the expected business outcome.
 
-### Logger database failure
+### Logger failure
 
-- [ ] OIO database invoke fails.
+- [ ] The database or mapping call fails.
 - [ ] No recursive logger call occurs.
-- [ ] Original target fault remains available.
-- [ ] Parent rethrows the original fault.
-- [ ] Native OIC monitoring shows the logger failure context.
+- [ ] The original target fault remains available.
+- [ ] The parent returns or rethrows the original fault.
 
-### Sensitive payload
+### Sensitive content
 
-- [ ] Full payload retention is disabled by default.
-- [ ] Sanitized diagnostic content is used when approved.
-- [ ] No token, credential, bank detail, or unnecessary personal data is stored.
-- [ ] Retention and deletion requirements are documented.
+- [ ] Payload retention is disabled by default.
+- [ ] Any retained content is minimized and sanitized.
+- [ ] Applicable privacy and retention decisions are documented.
 
-## 11. Documentation evidence to publish
+## 10. Evidence to publish
 
-When this pattern is implemented, add sanitized screenshots showing:
+After implementation, add sanitized screenshots showing:
 
 - the parent business scope;
-- the scope or global fault handler;
+- the fault handler;
 - original-fault variable assignments;
-- the flat OIO error mapping;
-- the local invocation of `OIO_LOG_EVENT`;
+- the OIO logger invocation;
 - the nested logger-fault boundary;
 - the rethrow action;
-- the resulting OIO event row.
+- the resulting OIO database event.
 
 Do not publish production payloads or connection details.
+
+## 11. Related documentation
+
+- [Implementation pattern](implementation-pattern.md)
+- [Mapping reference](mapping-reference.md)
+- [Logging contract](../docs/logging-contract.md)
+- [Security considerations](../README.md#security-considerations)
 
 ## 12. Official Oracle references
 
