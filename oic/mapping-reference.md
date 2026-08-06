@@ -8,13 +8,13 @@ The canonical property definitions, limits, and operation requirements are maint
 
 ## 2. Responsibility
 
-The parent business integration supplies the business and fault context. `OIO_LOG_EVENT` preserves the flat field set, serializes it as JSON text, and maps it to the package parameter:
+The parent business integration supplies the business and fault context. It dispatches the request asynchronously to `OIO_LOG_EVENT`, which preserves the flat field set, serializes it as JSON text, and maps it to the package parameter:
 
 ```text
 P_PAYLOAD
 ```
 
-Database parsing and normalization are handled by `OIO_TRACE_API`.
+Database parsing and normalization are handled by `OIO_TRACE_API` in the asynchronous child instance. The parent does not receive the database result.
 
 ## 3. Create trace mapping
 

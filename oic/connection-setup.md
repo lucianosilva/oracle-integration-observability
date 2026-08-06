@@ -2,7 +2,7 @@
 
 ## 1. Purpose
 
-This document covers only the Oracle Database Adapter connection used by `OIO_LOG_EVENT`.
+This document covers only the Oracle Database Adapter connection used by the asynchronous `OIO_LOG_EVENT` integration.
 
 The database ownership and runtime model is defined in the [architecture document](../docs/architecture.md). The expected model is:
 
@@ -108,14 +108,18 @@ Document any deviation from the repository security model.
 
 ## 8. Validation checklist
 
+Because `OIO_LOG_EVENT` is asynchronous, a successful handoff does not prove that the database operation completed. Validate the child instance and database state separately.
+
 - [ ] `OIO_TRACE_API` is valid.
 - [ ] `OIO_RUNTIME` can create a session.
 - [ ] `OIO_RUNTIME` can execute the package.
 - [ ] `OIO_RUNTIME` cannot directly access OIO tables.
 - [ ] The `OIO_DB` connection test succeeds.
 - [ ] Both procedures are visible to the adapter.
-- [ ] A create call generates the expected database rows.
-- [ ] A status update appends the expected event.
+- [ ] The asynchronous child instance completes successfully.
+- [ ] A create operation eventually generates the expected database rows.
+- [ ] A status update eventually appends the expected event.
+- [ ] A database failure appears in the child integration instance without changing the completed parent outcome.
 - [ ] No secrets appear in screenshots or exports.
 
 ## 9. Related documentation
