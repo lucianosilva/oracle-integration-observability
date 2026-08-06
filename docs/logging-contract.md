@@ -38,7 +38,7 @@ Example with embedded JSON:
 
 Public entry points:
 
-- `OIO_TRACE_API.PR_CREATE_OIO_TRACE`
+- `OIO_TRACE_API.PR_CREATE_TRACE_LOG`
 - `OIO_TRACE_API.REGISTER_EVENT_JSON`
 
 A create operation:

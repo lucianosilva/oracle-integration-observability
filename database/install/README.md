@@ -10,9 +10,9 @@ This folder contains the initial OIO repository. `OIO_OWNER` creates and maintai
 4. `03_oio_trace_event.sql`
 5. `04_oio_trace_payload.sql`
 6. `05_oio_views.sql`
-7. `oio_trace_api.pks`
-8. `oio_trace_api.pkb`
-9. Optional: `00b_oio_runtime_optional.sql` — execute as DBA after the package compiles.
+7. `oio_trace_api_pks.sql`
+8. `oio_trace_api_pkb.sql`
+9. Optional: `00_oio_runtime_creation.sql` — execute as DBA after the package compiles.
 
 ## Security model
 

@@ -4,7 +4,7 @@ These examples follow the flat payload currently parsed by `OIO_TRACE_API`.
 
 ## Create trace examples
 
-Use with `OIO_TRACE_API.PR_CREATE_OIO_TRACE` or `OIO_TRACE_API.REGISTER_EVENT_JSON`:
+Use with `OIO_TRACE_API.PR_CREATE_TRACE_LOG` or `OIO_TRACE_API.REGISTER_EVENT_JSON`:
 
 - `01_create_success.json`
 - `02_create_business_error.json`

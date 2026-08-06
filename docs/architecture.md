@@ -161,7 +161,7 @@ Payload storage should be selective. Sensitive, regulated, or high-volume conten
 
 The package is the public database interface for the framework. The current package exposes:
 
-- `PR_CREATE_OIO_TRACE`
+- `PR_CREATE_TRACE_LOG`
 - `PR_UPDATE_TRANSACTION_STATUS`
 - `REGISTER_EVENT_JSON`
 
