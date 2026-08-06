@@ -303,19 +303,6 @@ Payload retention must be intentional. Sanitize sensitive values before persiste
 - Retention and purge utilities
 - Automated SQL and documentation validation
 
-## Contributing
-
-Issues and pull requests are welcome once the first validated release is available.
-
-When proposing a change:
-
-- keep the canonical contract flat;
-- preserve metadata-driven field behavior;
-- avoid environment-specific credentials and identifiers;
-- use anonymized sample data;
-- document database and Oracle Integration compatibility;
-- explain any change to public package behavior.
-
 ## License
 
 [![License](https://shields.io)](https://opensource.org)
