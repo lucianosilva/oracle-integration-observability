@@ -467,34 +467,55 @@
     end pr_create_trace_log;
 
     procedure pr_update_transaction_status(
-        p_payload in clob
+      p_payload in clob
     ) is
-        pragma autonomous_transaction;
-
-        l_event           t_event_rec;
-        l_trace_ids       t_trace_id_tab;
-        l_trace_detail_id oio_trace_event.trace_detail_id%type;
+      pragma autonomous_transaction;
+      l_event           t_event_rec;
+      l_trace_ids       t_trace_id_tab;
+      l_trace_detail_id oio_trace_event.trace_detail_id%type;
     begin
-        l_event := load_event(p_payload);
-        validate_status_update(l_event);
+      l_event := load_event(p_payload);
+      validate_status_update(l_event);
 
         select trace_id
-          bulk collect into l_trace_ids
-          from oio_trace
-         where integration_key = l_event.integration_key
-           and (l_event.transaction_id1 is null or transaction_id1 = l_event.transaction_id1)
-           and (l_event.transaction_id2 is null or transaction_id2 = l_event.transaction_id2)
-           and (l_event.transaction_id3 is null or transaction_id3 = l_event.transaction_id3);
+        bulk collect into l_trace_ids
+        from oio_trace
+        where integration_key = l_event.integration_key
+        and (l_event.transaction_id1 is null or transaction_id1 = l_event.transaction_id1)
+        and (l_event.transaction_id2 is null or transaction_id2 = l_event.transaction_id2)
+        and (l_event.transaction_id3 is null or transaction_id3 = l_event.transaction_id3);
 
         if l_trace_ids.count = 0 then
-            raise_application_error(-20010, 'No oio_trace rows were found for the provided transaction identifiers.');
+            raise_application_error(
+                -20010,
+                'No oio_trace rows were found for the provided transaction identifiers.'
+            );
         end if;
 
         for i in 1 .. l_trace_ids.count loop
             update oio_trace
-               set summary = coalesce(l_event.summary, summary),
-                   last_update_date = systimestamp
-             where trace_id = l_trace_ids(i);
+            set log_ref_id      = coalesce(l_event.log_ref_id, log_ref_id),
+                oic_instance_id = coalesce(l_event.oic_instance_id, oic_instance_id),
+                user_name       = coalesce(l_event.user_name, user_name),
+                log_level       = coalesce(l_event.log_level, log_level),
+                summary         = coalesce(l_event.summary, summary),
+                error_code      = coalesce(l_event.error_code, error_code),
+                error_message   = coalesce(l_event.error_message, error_message),
+                attr1_value     = coalesce(l_event.attr1_value, attr1_value),
+                attr2_value     = coalesce(l_event.attr2_value, attr2_value),
+                attr3_value     = coalesce(l_event.attr3_value, attr3_value),
+                attr4_value     = coalesce(l_event.attr4_value, attr4_value),
+                attr5_value     = coalesce(l_event.attr5_value, attr5_value),
+                attr6_value     = coalesce(l_event.attr6_value, attr6_value),
+                attr7_value     = coalesce(l_event.attr7_value, attr7_value),
+                attr8_value     = coalesce(l_event.attr8_value, attr8_value),
+                attr9_value     = coalesce(l_event.attr9_value, attr9_value),
+                attr10_value    = coalesce(l_event.attr10_value, attr10_value),
+                transaction_id1 = coalesce(l_event.transaction_id1, transaction_id1),
+                transaction_id2 = coalesce(l_event.transaction_id2, transaction_id2),
+                transaction_id3 = coalesce(l_event.transaction_id3, transaction_id3),
+                last_update_date = systimestamp
+            where trace_id = l_trace_ids(i);
 
             insert_detail_event(
                 p_trace_id        => l_trace_ids(i),
@@ -502,13 +523,18 @@
                 p_event           => l_event,
                 o_trace_detail_id => l_trace_detail_id
             );
+
+            insert_lob_event(
+                p_trace_detail_id => l_trace_detail_id,
+                p_event           => l_event
+            );
         end loop;
 
         commit;
     exception
-        when others then
-            rollback;
-            raise;
+    when others then
+        rollback;
+        raise;
     end pr_update_transaction_status;
 
     procedure register_event_json(
