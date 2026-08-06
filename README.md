@@ -318,7 +318,7 @@ When proposing a change:
 
 ## License
 
-A repository license will be added before the first tagged release.
+[![License](https://shields.io)](https://opensource.org)
 
 ## Disclaimer
 
