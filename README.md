@@ -260,7 +260,13 @@ Never commit or publish:
 - unmasked personal, financial, or regulated data;
 - complete production payloads when a reduced diagnostic representation is sufficient.
 
-Payload retention must be intentional. Sanitize sensitive values before persistence and define access and retention rules appropriate to the implementation.
+Each implementation must comply with the data protection, privacy, and retention laws applicable to the countries and jurisdictions in which the solution operates. These requirements must be assessed within the specific business, legal, regulatory, and security context of each project.
+
+The storage of request and response payloads in CLOB columns is optional. Depending on their content, those payloads may contain personal, financial, confidential, regulated, or otherwise sensitive information. Persisting them without an appropriate legal basis, retention policy, access-control model, masking strategy, and deletion process may violate applicable data protection or data-retention requirements.
+
+For this reason, payload persistence must be explicitly reviewed and approved as part of the implementation design. Projects should determine whether payload storage is necessary, which fields may be retained, how sensitive values will be sanitized or masked, who may access the data, how long it will be stored, and how it will be securely deleted. When payload retention is not required, `requestPayload` and `responsePayload` should remain unset.
+
+Payload retention must therefore be intentional, minimal, and controlled. This reference implementation does not prescribe a universal retention period or legal interpretation; those decisions remain the responsibility of each implementing organization and should involve the appropriate legal, compliance, privacy, security, and data-governance stakeholders.
 
 ## Known limitations
 
@@ -303,9 +309,22 @@ Payload retention must be intentional. Sanitize sensitive values before persiste
 - Retention and purge utilities
 - Automated SQL and documentation validation
 
+## Contributing
+
+Issues and pull requests are welcome once the first validated release is available.
+
+When proposing a change:
+
+- keep the canonical contract flat;
+- preserve metadata-driven field behavior;
+- avoid environment-specific credentials and identifiers;
+- use anonymized sample data;
+- document database and Oracle Integration compatibility;
+- explain any change to public package behavior.
+
 ## License
 
-[![License](https://shields.io)](https://opensource.org)
+[![Licença](https://shields.io)](LICENSE)
 
 ## Disclaimer
 
