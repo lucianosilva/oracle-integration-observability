@@ -296,36 +296,6 @@ Payload retention must therefore be intentional, minimal, and controlled. This r
 - No automated purge or retention process is included.
 - No automated installation or regression test pipeline is included.
 
-## Roadmap
-
-### v0.1 - Core database and contract
-
-- Database model
-- PL/SQL API
-- Flat JSON contract
-- JSON examples
-- Architecture documentation
-- Installation and validation guidance
-- Clean-environment database validation
-
-### v0.2 - Oracle Integration implementation
-
-- Database Adapter connection guidance
-- Field mapping reference
-- Scope and global fault-handler patterns
-- Sample Oracle Integration orchestration
-- Sanitized integration export
-- End-to-end validation evidence
-
-### Future increments
-
-- Oracle APEX operational console
-- Analytical views
-- ORDS endpoints and OpenAPI definition
-- Grafana dashboard and alerting examples
-- Retention and purge utilities
-- Automated SQL and documentation validation
-
 ## Contributing
 
 Issues and pull requests are welcome once the first validated release is available.
