@@ -20,11 +20,15 @@
     */
 
     procedure pr_create_trace_log(
-        p_payload in clob
+        p_payload IN  clob,
+        o_status  OUT VARCHAR2,
+        o_message OUT VARCHAR2
     );
 
     procedure pr_update_transaction_status(
-        p_payload in clob
+        p_payload in clob,
+        o_status  OUT VARCHAR2,
+        o_message OUT VARCHAR2
     );
 
     procedure register_event_json(

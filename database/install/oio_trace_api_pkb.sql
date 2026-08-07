@@ -1,5 +1,6 @@
 ﻿create or replace package body oio_trace_api as
-
+    g_status_success CONSTANT VARCHAR2(30) := 'SUCCESS';
+    g_status_error   CONSTANT VARCHAR2(30) := 'SUCCESS';
     subtype t_payload_key is varchar2(128);
 
     type t_trace_id_tab is table of oio_trace.trace_id%type;
@@ -446,12 +447,15 @@
     end create_trace_event;
 
     procedure pr_create_trace_log(
-        p_payload in clob
+        p_payload in clob,
+        o_status  OUT VARCHAR2,
+        o_message OUT VARCHAR2
     ) is
         pragma autonomous_transaction;
 
         l_trace_id        oio_trace.trace_id%type;
         l_trace_detail_id oio_trace_event.trace_detail_id%type;
+        l_message         VARCHAR2(4000) := 'Record was created with success';
     begin
         create_trace_event(
             p_payload         => p_payload,
@@ -460,19 +464,25 @@
         );
 
         commit;
+        o_status := g_status_success;
+        o_message := l_message;
     exception
         when others then
             rollback;
-            raise;
+            o_status := g_status_error;
+            o_message := SUBSTR(DBMS_UTILITY.FORMAT_ERROR_BACKTRACE, 0, 4000);
     end pr_create_trace_log;
 
     procedure pr_update_transaction_status(
-      p_payload in clob
+        p_payload in clob,
+        o_status  OUT VARCHAR2,
+        o_message OUT VARCHAR2
     ) is
       pragma autonomous_transaction;
       l_event           t_event_rec;
       l_trace_ids       t_trace_id_tab;
       l_trace_detail_id oio_trace_event.trace_detail_id%type;
+      l_message         VARCHAR2(4000) := 'Record was created with success';
     begin
       l_event := load_event(p_payload);
       validate_status_update(l_event);
@@ -531,10 +541,13 @@
         end loop;
 
         commit;
+        o_status := g_status_success;
+        o_message := l_message;
     exception
     when others then
         rollback;
-        raise;
+        o_status := g_status_error;
+        o_message := DBMS_UTILITY.FORMAT_ERROR_BACKTRACE;
     end pr_update_transaction_status;
 
     procedure register_event_json(
