@@ -36,31 +36,41 @@ Example with embedded JSON:
 
 ### 3.1 Create trace
 
-Public entry points:
+Primary OIC entry point:
 
 - `OIO_TRACE_API.PR_CREATE_TRACE_LOG`
+
+Compatibility entry point:
+
 - `OIO_TRACE_API.REGISTER_EVENT_JSON`
 
-A create operation:
+`PR_CREATE_TRACE_LOG`:
 
 1. Validates the `integrationKey` against `OIO_INTEGRATION_CFG`.
 2. Creates one row in `OIO_TRACE`.
 3. Creates the initial row in `OIO_TRACE_EVENT`.
 4. Creates one `OIO_TRACE_PAYLOAD` row when a request or response payload is provided.
+5. Commits the autonomous transaction on success.
+6. Returns `O_STATUS` and `O_MESSAGE` to the calling OIC child integration.
 
 ### 3.2 Update transaction status
 
-Public entry point:
+Primary OIC entry point:
 
 - `OIO_TRACE_API.PR_UPDATE_TRANSACTION_STATUS`
 
-An update operation:
+The operation:
 
 1. Validates the `integrationKey`.
 2. Requires at least one transaction identifier.
 3. Locates matching `OIO_TRACE` records.
-4. Updates the master summary and last-update timestamp.
+4. Updates non-null master values supplied in the event.
 5. Appends a `STATUS_UPDATE` row to `OIO_TRACE_EVENT` for each match.
+6. Creates an `OIO_TRACE_PAYLOAD` row for each new event when a request or response payload is provided.
+7. Commits the autonomous transaction on success.
+8. Returns `O_STATUS` and `O_MESSAGE` to the calling OIC child integration.
+
+The JSON input shape is the same for both operations. Operation selection belongs to the OIC endpoint and is not represented by an additional JSON property.
 
 ## 4. Complete flat payload template
 
@@ -332,27 +342,48 @@ Important limits include:
 
 Producers should still enforce appropriate limits before calling OIO. Silent truncation can remove information needed for troubleshooting.
 
-## 15. Processing and transaction behavior
+## 15. Processing and result behavior
 
-The public procedures use autonomous transactions.
+The primary persistence procedures use autonomous transactions and expose an explicit database result contract.
 
-- Successful operations are committed by the package.
-- Failed operations are rolled back by the package.
-- Database errors are propagated to the caller by the current implementation.
+### 15.1 `PR_CREATE_TRACE_LOG` and `PR_UPDATE_TRANSACTION_STATUS`
 
-`REGISTER_EVENT_JSON` additionally exposes:
+Both procedures accept:
+
+| Parameter | Direction | Meaning |
+|---|---|---|
+| `P_PAYLOAD` | IN | Complete flat OIO document serialized as a CLOB. |
+| `O_STATUS` | OUT | Execution result consumed by `OIO_LOG_EVENT`. |
+| `O_MESSAGE` | OUT | Informational or diagnostic message associated with the result. |
+
+Expected result values:
+
+| `O_STATUS` | Meaning | OIC behavior |
+|---|---|---|
+| `SUCCESS` | The database operation completed and committed. | `OIO_LOG_EVENT` completes normally. |
+| `ERROR` | The database operation failed and was rolled back. | `OIO_LOG_EVENT` executes `Throw New Fault`. |
+
+Validation exceptions and other database errors raised during the internal processing of these procedures are caught by the public procedure. The OIO transaction is rolled back and the failure is returned through `O_STATUS` and `O_MESSAGE` rather than re-raised to the Database Adapter.
+
+`O_STATUS` and `O_MESSAGE` are not properties of the canonical JSON contract. They are Database Adapter output parameters used internally by the asynchronous logger.
+
+Because the parent business integration invokes `OIO_LOG_EVENT` asynchronously, it does not receive these output values. The result is evaluated only inside the child instance. See the [OIC implementation pattern](../oic/implementation-pattern.md).
+
+### 15.2 `REGISTER_EVENT_JSON` compatibility behavior
+
+`REGISTER_EVENT_JSON` remains available for compatibility and exposes:
 
 | OUT parameter | Meaning |
 |---|---|
-| `O_STATUS` | `OK` after successful creation; set to `ERROR` in the exception handler |
-| `O_TRACE_ID` | Generated trace identifier after successful creation |
-| `O_MESSAGE` | Success message or captured database error text |
+| `O_STATUS` | `OK` after successful creation; `ERROR` when the exception handler is entered. |
+| `O_TRACE_ID` | Generated trace identifier after successful creation. |
+| `O_MESSAGE` | Success message or captured error text. |
 
-Callers should test the actual behavior through the selected Oracle Database Adapter operation before relying on OUT parameters during an exception path.
+Unlike the two primary OIC procedures, the compatibility wrapper currently re-raises an exception after setting its error outputs. It is therefore not the procedure used by the current `OIO_LOG_EVENT` design.
 
 ## 16. Validation errors
 
-The current package uses application errors in the `-20000` range.
+The internal package validation uses application errors in the `-20000` range.
 
 | Error | Current meaning |
 |---:|---|
@@ -368,7 +399,9 @@ The current package uses application errors in the `-20000` range.
 | `-20009` | `transactionStatus` is required for update |
 | `-20010` | No trace matched the update identifiers |
 
-These codes describe the current implementation and should be kept stable once external integrations depend on them.
+For `PR_CREATE_TRACE_LOG` and `PR_UPDATE_TRANSACTION_STATUS`, these exceptions are handled by the public procedure and converted into the `O_STATUS` / `O_MESSAGE` result contract. `OIO_LOG_EVENT` then generates an OIC fault when the returned status is not `SUCCESS`.
+
+These codes describe the current internal validation behavior and should be kept stable once external consumers or operational procedures depend on them.
 
 ## 17. Create example
 

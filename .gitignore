@@ -1,0 +1,59 @@
+# macOS metadata
+.DS_Store
+**/.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+.fseventsd
+
+# Editor and IDE metadata
+.vscode/
+.idea/
+*.iml
+*.ipr
+*.iws
+*.swp
+*.swo
+*~
+
+# Temporary, backup, and log files
+*.tmp
+*.temp
+*.bak
+*.orig
+*.log
+*.out
+
+# Local environment files
+.env
+.env.*
+!.env.example
+
+# Oracle / OCI credentials and security material
+.oci/
+**/.oci/
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.jceks
+cwallet.sso
+ewallet.p12
+
+# Local Oracle wallet directories
+wallet/
+Wallet_*/
+**/wallet/
+**/Wallet_*/
+
+# Local working directories for extracted or temporary OIC artifacts
+oic/tmp/
+oic/work/
+oic/extracted/
+
+# OS / tooling caches
+.cache/
+.tmp/

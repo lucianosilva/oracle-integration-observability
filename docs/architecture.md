@@ -27,10 +27,13 @@ The current implementation includes:
 - A PL/SQL API used as the database entry point.
 - A support view that exposes the current status together with the complete history.
 - Separate owner and optional runtime database users.
+- The asynchronous `OIO_LOG_EVENT` Oracle Integration component.
+- A sanitized Oracle Integration export for `OIO_LOG_EVENT`.
+- Native OIC fault generation when database persistence returns a non-success result.
 
 The current version does not include:
 
-- An Oracle Integration export package.
+- An exported `OIO_SAMPLE_BUSINESS_FLOW` demonstration integration.
 - An Oracle APEX application export.
 - ORDS endpoints.
 - Grafana dashboards or alert rules.
@@ -69,30 +72,47 @@ Request and response payloads are stored only when provided. They are separated 
 
 `OIO_OWNER` owns the database objects. The optional `OIO_RUNTIME` user is intended for the Oracle Integration database connection and receives only `CREATE SESSION` and `EXECUTE` on `OIO_TRACE_API`.
 
+### 3.7 Observability persistence is asynchronous
+
+The business integration does not call the database API directly. It dispatches the flat OIO event to `OIO_LOG_EVENT` using an asynchronous fire-and-forget invocation.
+
+The parent process continues after Oracle Integration accepts the handoff. Database persistence, result evaluation, and any later logging failure occur in the child integration instance. This prevents observability storage from becoming part of the business response path while keeping failed logging instances visible through native OIC monitoring and error management.
+
 ## 4. Logical architecture
 
 ```mermaid
 flowchart LR
-    A[Source or business process] --> B[Oracle Integration flow]
-    B --> C[Build flat OIO payload]
-    C --> D[Database Adapter]
+    A[Business integration] -->|Asynchronous local invoke| B[OIO_LOG_EVENT]
+    B --> C[Build / serialize flat OIO payload]
+    C --> D[Oracle Database Adapter]
     D --> E[OIO_TRACE_API]
+
     E --> F[(OIO_INTEGRATION_CFG)]
     E --> G[(OIO_TRACE)]
     E --> H[(OIO_TRACE_EVENT)]
     E --> I[(OIO_TRACE_PAYLOAD)]
-    G --> J[OIO_V_TRACE_STATUS_HISTORY]
-    H --> J
-    J --> K[SQL and support queries]
-    J -. future .-> L[Oracle APEX]
-    J -. future .-> M[ORDS and Grafana]
+
+    E -->|O_STATUS / O_MESSAGE| B
+    B -->|O_STATUS = SUCCESS| J[Child completes]
+    B -->|O_STATUS != SUCCESS| K[Throw New Fault]
+    K --> L[OIC native error management]
+
+    G --> M[OIO_V_TRACE_STATUS_HISTORY]
+    H --> M
+    M --> N[SQL and support queries]
+    M -. future .-> O[Oracle APEX]
+    M -. future .-> P[ORDS and Grafana]
 ```
+
+The asynchronous handoff isolates the business process from database persistence. A successful handoff means that the child request was accepted by Oracle Integration; it does not guarantee that the database write completed successfully.
 
 ## 5. Components
 
-### 5.1 Oracle Integration flow
+### 5.1 Business integration
 
-The business integration is responsible for collecting the values required by the logging contract. Depending on the implementation, the logger may be called from:
+The business integration is responsible for collecting the values required by the logging contract and dispatching the event asynchronously to `OIO_LOG_EVENT`.
+
+Depending on the use case, the dispatch may occur from:
 
 - The main orchestration flow.
 - A scope fault handler.
@@ -100,7 +120,7 @@ The business integration is responsible for collecting the values required by th
 - A retry or reprocessing flow.
 - A support operation that changes the business transaction status.
 
-The integration sends the complete flat payload as a CLOB to the PL/SQL API through the Oracle Database Adapter.
+The business integration does not wait for the Database Adapter or PL/SQL package to complete. Field-level behavior is defined in the [logging contract](logging-contract.md), while OIC implementation details are maintained under [`oic/`](../oic/README.md).
 
 ### 5.2 `OIO_INTEGRATION_CFG`
 
@@ -159,7 +179,7 @@ Payload storage should be selective. Sensitive, regulated, or high-volume conten
 
 ### 5.6 `OIO_TRACE_API`
 
-The package is the public database interface for the framework. The current package exposes:
+The package is the public database interface for the framework. It exposes:
 
 - `PR_CREATE_TRACE_LOG`
 - `PR_UPDATE_TRANSACTION_STATUS`
@@ -173,11 +193,30 @@ The package:
 - Creates the master trace and initial event.
 - Appends transaction status events.
 - Stores optional request and response payloads.
-- Controls the database transaction used by each public operation.
+- Controls the autonomous database transaction used by each public operation.
+
+`PR_CREATE_TRACE_LOG` and `PR_UPDATE_TRANSACTION_STATUS` return `O_STATUS` and `O_MESSAGE`. On success, the operation commits and returns `SUCCESS`. On an internal error, the operation rolls back and returns an error status and diagnostic message to `OIO_LOG_EVENT` for evaluation.
+
+`REGISTER_EVENT_JSON` remains a compatibility wrapper with its own `OK` / `ERROR` behavior and generated trace identifier.
 
 The package uses definer-rights execution so the runtime user does not require direct table privileges.
 
-### 5.7 `OIO_V_TRACE_STATUS_HISTORY`
+### 5.7 `OIO_LOG_EVENT`
+
+`OIO_LOG_EVENT` is the reusable asynchronous Oracle Integration component that isolates the business flow from the database layer.
+
+For each operation it:
+
+1. Receives the flat OIO payload.
+2. Serializes the payload for the PL/SQL CLOB input.
+3. Invokes the corresponding `OIO_TRACE_API` procedure.
+4. Evaluates `O_STATUS` returned by the procedure.
+5. Completes normally when `O_STATUS = SUCCESS`.
+6. Executes `Throw New Fault` when `O_STATUS != SUCCESS`, using `O_MESSAGE` as diagnostic context.
+
+The generated fault belongs to the asynchronous child instance and is intentionally left to native OIC monitoring and error management. It does not propagate back to a parent business integration that has already continued.
+
+### 5.8 `OIO_V_TRACE_STATUS_HISTORY`
 
 The support view joins the trace master and event history. It exposes:
 
@@ -196,15 +235,18 @@ The view is intended as the initial access layer for support queries and future 
 
 ```mermaid
 sequenceDiagram
-    participant OIC as Oracle Integration
+    participant Parent as Business integration
+    participant Logger as OIO_LOG_EVENT
     participant API as OIO_TRACE_API
     participant CFG as OIO_INTEGRATION_CFG
     participant TRC as OIO_TRACE
     participant EVT as OIO_TRACE_EVENT
     participant PAY as OIO_TRACE_PAYLOAD
+    participant EM as OIC error management
 
-    OIC->>API: Flat JSON payload
-    API->>API: Parse and validate required fields
+    Parent-)Logger: Asynchronous CreateTrace handoff
+    Parent-->>Parent: Continue business processing
+    Logger->>API: PR_CREATE_TRACE_LOG(P_PAYLOAD)
     API->>CFG: Validate active integrationKey
     CFG-->>API: Configuration found
     API->>TRC: Insert master trace
@@ -212,32 +254,48 @@ sequenceDiagram
     opt requestPayload or responsePayload provided
         API->>PAY: Insert payload linked to event
     end
-    API-->>OIC: Procedure completes
+    API-->>Logger: O_STATUS / O_MESSAGE
+    alt O_STATUS = SUCCESS
+        Logger-->>Logger: Complete child instance
+    else O_STATUS != SUCCESS
+        Logger->>Logger: Throw New Fault
+        Logger-->>EM: Failed child instance
+    end
 ```
 
-A create operation produces one master row and one initial history row. A payload row is created only when at least one payload value is present.
+A successful database operation creates one master row and one initial history row. A payload row is created only when at least one payload value is present.
 
 ### 6.2 Update transaction status
 
 ```mermaid
 sequenceDiagram
-    participant OIC as Oracle Integration or support flow
+    participant Parent as Business or support integration
+    participant Logger as OIO_LOG_EVENT
     participant API as OIO_TRACE_API
-    participant CFG as OIO_INTEGRATION_CFG
     participant TRC as OIO_TRACE
     participant EVT as OIO_TRACE_EVENT
+    participant PAY as OIO_TRACE_PAYLOAD
+    participant EM as OIC error management
 
-    OIC->>API: Flat JSON status payload
-    API->>API: Parse and validate identifiers and status
-    API->>CFG: Validate active integrationKey
-    CFG-->>API: Configuration found
+    Parent-)Logger: Asynchronous UpdateTransactionStatus handoff
+    Parent-->>Parent: Continue processing
+    Logger->>API: PR_UPDATE_TRANSACTION_STATUS(P_PAYLOAD)
     API->>TRC: Locate matching trace records
-    API->>TRC: Update summary and last-update timestamp
+    API->>TRC: Update non-null master values
     API->>EVT: Append STATUS_UPDATE event
-    API-->>OIC: Procedure completes
+    opt requestPayload or responsePayload provided
+        API->>PAY: Insert payload linked to event
+    end
+    API-->>Logger: O_STATUS / O_MESSAGE
+    alt O_STATUS = SUCCESS
+        Logger-->>Logger: Complete child instance
+    else O_STATUS != SUCCESS
+        Logger->>Logger: Throw New Fault
+        Logger-->>EM: Failed child instance
+    end
 ```
 
-The current implementation locates records by `integrationKey` and the transaction identifiers provided in the payload. Fields with null transaction identifiers are not included in the match. If more than one trace satisfies the criteria, a status event is appended to every matching trace.
+The current implementation locates records by `integrationKey` and the transaction identifiers provided in the payload. Null transaction identifiers are ignored during matching. If more than one trace satisfies the criteria, the master values are updated and a status event is appended to every matching trace.
 
 ## 7. Data relationships
 
@@ -297,17 +355,23 @@ Status updates are recorded with the event type `STATUS_UPDATE`.
 
 ## 9. Transaction and failure behavior
 
-The public procedures use autonomous database transactions.
+The public persistence procedures use autonomous database transactions.
 
-On successful processing, the package commits the trace data independently from the caller's transaction. On failure, it rolls back the OIO operation and propagates the database exception to the caller.
+For `PR_CREATE_TRACE_LOG` and `PR_UPDATE_TRANSACTION_STATUS`:
 
-This design prevents an application rollback from automatically removing an observability record that was already committed. It also means the caller must explicitly decide how a logging failure affects the main integration flow.
+- Successful processing commits independently from the caller and returns `O_STATUS = SUCCESS` with an informational `O_MESSAGE`.
+- Internal processing errors roll back the OIO transaction and are converted into `O_STATUS` / `O_MESSAGE` output values.
+- `OIO_LOG_EVENT` evaluates the returned status after the Database Adapter invoke.
+- When the status differs from `SUCCESS`, the child integration executes `Throw New Fault` so the failed logger instance remains visible and manageable through native OIC error handling.
 
-A recommended integration rule is:
+Because `OIO_LOG_EVENT` is invoked asynchronously, this failure is isolated from the parent business integration after the handoff has been accepted. The parent does not wait for the database result and does not receive `O_STATUS` or `O_MESSAGE`.
 
-> A logging failure must not replace or hide the original business or technical fault.
+This creates two separate operational boundaries:
 
-The exact OIC fault-handling implementation is outside the scope of the current database release and should be documented when OIC artifacts are added.
+1. **Business-flow execution:** continues after the asynchronous handoff is accepted.
+2. **Observability persistence:** completes or fails independently in the `OIO_LOG_EVENT` instance.
+
+`REGISTER_EVENT_JSON` is a compatibility wrapper and is not the primary procedure used by the current OIC component. Its exception behavior differs from the two primary procedures and is documented in the [logging contract](logging-contract.md).
 
 ## 10. Security boundaries
 
@@ -350,37 +414,46 @@ No automatic purge job is included in the current release. Retention must be def
 
 ## 12. Repository structure
 
-The relevant repository areas are expected to follow this structure:
+The relevant repository areas follow this structure:
 
 ```text
 oracle-integration-observability/
 ├── contracts/
 │   └── examples/
 ├── database/
-│   ├── install/
-│   └── tests/
-└── docs/
-    ├── architecture.md
-    └── logging-contract.md
+│   └── install/
+├── docs/
+│   ├── architecture.md
+│   └── logging-contract.md
+└── oic/
+    ├── README.md
+    ├── connection-setup.md
+    ├── implementation-pattern.md
+    ├── mapping-reference.md
+    ├── fault-handler-pattern.md
+    └── export/
+        └── OIO_LOG_EVENT_01.00.0000.iar
 ```
 
 ## 13. Current limitations
 
-- The database scripts and package must be validated in a clean target database before being identified as a tested release.
+- The database scripts and package should be validated in a clean target database before a tagged tested release.
 - Transaction statuses are business-defined and are not restricted by a database check constraint.
 - The physical attribute fields are generic and require configuration documentation for each integration.
 - Status update matching can affect multiple traces when the provided identifiers are not unique.
-- The current PL/SQL implementation supports JSON as the canonical contract and also contains XML parsing compatibility logic.
-- No user interface or alerting component is included in the current release.
+- The PL/SQL implementation supports JSON as the canonical contract and also contains XML parsing compatibility logic.
+- `OIO_LOG_EVENT` is included, but the demonstration `OIO_SAMPLE_BUSINESS_FLOW` is currently documented rather than exported.
+- No user interface, reconciliation process, or external alerting component is included in the current release.
 
 ## 14. Planned evolution
 
 Potential future increments include:
 
-- Oracle Integration sample artifacts and mapping guidance.
+- An exported `OIO_SAMPLE_BUSINESS_FLOW` demonstration integration.
+- Sanitized OIC implementation screenshots.
 - APEX operational pages.
 - ORDS APIs and OpenAPI definitions.
 - Grafana dashboards and alerting examples.
-- Automated installation tests.
+- Automated installation and regression tests.
 - Purge and retention utilities.
 - CI/CD validation for SQL and documentation artifacts.

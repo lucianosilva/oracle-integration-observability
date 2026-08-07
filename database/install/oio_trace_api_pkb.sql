@@ -1,6 +1,6 @@
 ﻿create or replace package body oio_trace_api as
     g_status_success CONSTANT VARCHAR2(30) := 'SUCCESS';
-    g_status_error   CONSTANT VARCHAR2(30) := 'SUCCESS';
+    g_status_error   CONSTANT VARCHAR2(30) := 'ERROR';
     subtype t_payload_key is varchar2(128);
 
     type t_trace_id_tab is table of oio_trace.trace_id%type;
