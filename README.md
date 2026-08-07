@@ -288,7 +288,6 @@ Payload retention must therefore be intentional, minimal, and controlled. This r
 ## Known limitations
 
 - The database scripts and package still require clean-environment runtime validation.
-- No Oracle Integration export or reusable OIC integration is included yet.
 - No Oracle APEX application, ORDS endpoint, Grafana dashboard, or alert rule is included yet.
 - Transaction statuses are business-defined and are not globally constrained by the database.
 - Attribute positions are generic and depend on metadata configured for each integration.
