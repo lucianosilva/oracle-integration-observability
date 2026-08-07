@@ -64,7 +64,7 @@ For the complete design, see [Architecture](docs/architecture.md).
 | Flat JSON logging contract | Documented |
 | JSON examples | Available |
 | Architecture documentation | Available |
-| Oracle Integration implementation | Planned |
+| Oracle Integration implementation | Available |
 | Oracle APEX operational console | Planned |
 | ORDS and Grafana extension | Planned |
 | Automated deployment and tests | Planned |
@@ -73,33 +73,50 @@ For the complete design, see [Architecture](docs/architecture.md).
 
 ```text
 oracle-integration-observability/
-├── contracts/
-│   └── examples/
-│       ├── README.md
-│       ├── 01_create_success.json
-│       ├── 02_create_business_error.json
-│       ├── 03_create_technical_error.json
-│       ├── 04_create_po_sync_success.json
-│       ├── 05_update_status_resolved.json
-│       └── 06_update_status_in_progress.json
-├── database/
-│   └── install/
-│       ├── README.md
-│       ├── 00_oio_owner_creation.sql
-│       ├── 00_oio_runtime_creation.sql
-│       ├── 01_oio_integration_cfg.sql
-│       ├── 02_oio_trace.sql
-│       ├── 03_oio_trace_event.sql
-│       ├── 04_oio_trace_payload.sql
-│       ├── 05_oio_views.sql
-│       ├── oio_trace_api_pks.sql
-│       ├── oio_trace_api_pkb.sql
-│       ├── sample_data_oio.sql
-│       └── validation_queries_oio.sql
-├── docs/
-│   ├── architecture.md
-│   └── logging-contract.md
-└── README.md
+├── LICENSE
+├── README.md
+├── contracts
+│   └── examples
+│       ├── 01_create_success.json
+│       ├── 02_create_business_error.json
+│       ├── 03_create_technical_error.json
+│       ├── 04_create_po_sync_success.json
+│       ├── 05_update_status_resolved.json
+│       ├── 06_update_status_in_progress.json
+│       └── README.md
+├── database
+│   └── install
+│       ├── 00_oio_owner_creation.sql
+│       ├── 00_oio_runtime_creation.sql
+│       ├── 01_oio_integration_cfg.sql
+│       ├── 02_oio_trace.sql
+│       ├── 03_oio_trace_event.sql
+│       ├── 04_oio_trace_payload.sql
+│       ├── 05_oio_views.sql
+│       ├── README.md
+│       ├── oio_trace_api_pkb.sql
+│       ├── oio_trace_api_pks.sql
+│       ├── sample_data_oio.sql
+│       └── validation_queries_oio.sql
+├── docs
+│   ├── architecture.md
+│   └── logging-contract.md
+└── oic
+    ├── README.md
+    ├── connection-setup.md
+    ├── export
+    │   ├── OIO_LOG_EVENT_01.00.0000.iar
+    │   └── OIO_SAMPLE_BUSINESS_FLOW_01.00.0000.iar
+    ├── fault-handler-pattern.md
+    ├── implementation-pattern.md
+    ├── mapping-reference.md
+    └── screenshot
+        ├── OIO_LOG_EVENT_global_handling.png
+        ├── OIO_LOG_EVENT_main.png
+        ├── OIO_SAMPLE_BUSINESS_FLOW.png
+        └── OIO_TRACE_DB_connection.png
+
+
 ```
 
 ## Database model

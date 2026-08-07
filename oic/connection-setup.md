@@ -77,6 +77,8 @@ Create two Database Adapter invokes inside `OIO_LOG_EVENT`.
 | Package | `OIO_TRACE_API` |
 | Procedure | `PR_CREATE_TRACE_LOG` |
 | Input | `P_PAYLOAD` CLOB |
+| Output | `O_STATUS` VARCHAR2 |
+| Output | `O_MESSAGE` VARCHAR2 |
 
 ### Update transaction status
 
@@ -88,7 +90,14 @@ Create two Database Adapter invokes inside `OIO_LOG_EVENT`.
 | Package | `OIO_TRACE_API` |
 | Procedure | `PR_UPDATE_TRANSACTION_STATUS` |
 | Input | `P_PAYLOAD` CLOB |
+| Output | `O_STATUS` VARCHAR2 |
+| Output | `O_MESSAGE` VARCHAR2 |
 
+`O_STATUS` and `O_MESSAGE` are evaluated inside `OIO_LOG_EVENT`.
+When `O_STATUS` differs from `SUCCESS`, the integration executes
+`Throw New Fault` using `O_MESSAGE` as diagnostic context.
+
+These outputs are internal to the asynchronous child integration and are not returned to the parent business flow.
 Field-level serialization is documented in the [mapping reference](mapping-reference.md).
 
 ## 7. Metadata discovery

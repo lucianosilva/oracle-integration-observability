@@ -2,19 +2,25 @@
 
 ## 1. Purpose
 
-This document is the source of truth for OIC field mapping and serialization.
+This document is the source of truth for OIC field mapping, JSON serialization, and Database Adapter result handling.
 
 The canonical property definitions, limits, and operation requirements are maintained in the [logging contract](../docs/logging-contract.md). Complete payload samples are maintained under [contracts/examples](../contracts/examples/README.md).
 
 ## 2. Responsibility
 
-The parent business integration supplies the business and fault context. It dispatches the request asynchronously to `OIO_LOG_EVENT`, which preserves the flat field set, serializes it as JSON text, and maps it to the package parameter:
+The parent business integration supplies the business and fault context and dispatches the request asynchronously to `OIO_LOG_EVENT`.
 
-```text
-P_PAYLOAD
-```
+`OIO_LOG_EVENT`:
 
-Database parsing and normalization are handled by `OIO_TRACE_API` in the asynchronous child instance. The parent does not receive the database result.
+1. preserves the flat field set;
+2. serializes it as JSON text;
+3. maps the JSON document to `P_PAYLOAD`;
+4. invokes the corresponding `OIO_TRACE_API` procedure;
+5. evaluates `O_STATUS`;
+6. completes normally when `O_STATUS = SUCCESS`;
+7. executes `Throw New Fault` when `O_STATUS != SUCCESS`, using `O_MESSAGE` as diagnostic context.
+
+Database parsing and normalization are handled by `OIO_TRACE_API` inside the asynchronous child instance. The parent business integration does not receive the database result.
 
 ## 3. Create trace mapping
 
@@ -76,10 +82,10 @@ OIO_OWNER.OIO_TRACE_API.PR_UPDATE_TRANSACTION_STATUS
 | `summary` | Transition description | Recommended. |
 | `errorCode` | Error or resolution code | Optional. |
 | `errorMessage` | Sanitized description | Optional. |
-| `requestPayload` | Approved supporting content | Optional and implementation-dependent. |
-| `responsePayload` | Approved supporting content | Optional and implementation-dependent. |
+| `requestPayload` | Approved supporting content | Optional. |
+| `responsePayload` | Approved supporting content | Optional. |
 
-Use all available business identifiers needed to avoid unintended multi-row updates.
+Use all business identifiers required to avoid unintended multi-row updates. The current package updates every trace that matches the supplied non-null identifiers.
 
 ## 5. Sample mapping
 
@@ -124,7 +130,30 @@ Example of embedded JSON strings:
 
 Payload storage is optional and must follow the [logging contract](../docs/logging-contract.md) and [security considerations](../README.md#security-considerations).
 
-## 7. Mapping checklist
+## 7. Database result mapping
+
+Both primary procedures return:
+
+| Database output | OIC use |
+|---|---|
+| `O_STATUS` | Controls the post-invoke decision. |
+| `O_MESSAGE` | Provides informational or diagnostic context. |
+
+Expected behavior:
+
+```text
+O_STATUS = SUCCESS
+    -> Complete the OIO_LOG_EVENT instance normally
+
+O_STATUS != SUCCESS
+    -> Execute Throw New Fault
+    -> Use O_MESSAGE as diagnostic context
+    -> Leave the asynchronous child instance failed for native OIC monitoring
+```
+
+`O_STATUS` and `O_MESSAGE` are not part of the flat JSON contract and are not returned to the parent business integration.
+
+## 8. Mapping checklist
 
 - [ ] `integrationKey` exists and is active.
 - [ ] Attribute positions match the selected configuration.
@@ -137,8 +166,10 @@ Payload storage is optional and must follow the [logging contract](../docs/loggi
 - [ ] Optional payloads remain null unless approved.
 - [ ] The serialized document is valid JSON.
 - [ ] The complete JSON text is mapped to `P_PAYLOAD`.
+- [ ] `O_STATUS` is evaluated after the Database Adapter invoke.
+- [ ] `O_MESSAGE` is mapped into the fault diagnostic context when `O_STATUS != SUCCESS`.
 
-## 8. Related documentation
+## 9. Related documentation
 
 - [Logging contract](../docs/logging-contract.md)
 - [JSON examples](../contracts/examples/README.md)

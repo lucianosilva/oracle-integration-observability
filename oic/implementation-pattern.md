@@ -72,7 +72,9 @@ Implementation steps:
 2. Apply basic request validation.
 3. Serialize the request into the JSON CLOB expected by the package.
 4. Invoke `OIO_TRACE_API.PR_CREATE_TRACE_LOG`.
-5. Complete the child instance.
+5. Evaluate `O_STATUS`.
+6. When `O_STATUS = SUCCESS`, complete the child instance.
+7. Otherwise, execute `Throw New Fault` using `O_MESSAGE` as diagnostic context.
 
 No application-level success response is returned to the parent. The asynchronous invocation confirms receipt or acceptance, not persistence completion.
 
@@ -93,7 +95,9 @@ Implementation steps:
 3. Confirm that at least one transaction identifier is present.
 4. Serialize the request.
 5. Invoke `OIO_TRACE_API.PR_UPDATE_TRANSACTION_STATUS`.
-6. Complete the child instance.
+6. Evaluate `O_STATUS`.
+7. When `O_STATUS = SUCCESS`, complete the child instance.
+8. Otherwise, execute `Throw New Fault` using `O_MESSAGE` as diagnostic context.
 
 The caller must provide identifiers selective enough for the intended trace. The current database behavior may update multiple traces when the supplied combination is not unique.
 

@@ -24,20 +24,22 @@ The canonical JSON contract remains flat. Its field definitions, mandatory value
 
 ## Current status
 
-The OIC layer is planned for repository version `v0.2`.
+`OIO_LOG_EVENT` is implemented and its sanitized Oracle Integration
+export is available under `oic/export`.
 
-Until exported integrations and end-to-end validation evidence are published, the files in this directory describe the intended implementation pattern rather than tested importable artifacts.
+End-to-end validation evidence and the sample parent integration remain
+part of the next repository increments.
 
 | Component | Status |
 |---|---|
 | OIC connection design | Documented |
-| Asynchronous `OIO_LOG_EVENT` design | Documented |
-| `OIO_SAMPLE_BUSINESS_FLOW` design | Documented |
+| Asynchronous `OIO_LOG_EVENT` | Implemented |
+| OIC export | Available |
 | Mapping reference | Documented |
 | Fault-handler pattern | Documented |
-| OIC exports | Planned |
+| `OIO_SAMPLE_BUSINESS_FLOW` | Reference pattern |
 | Sanitized screenshots | Planned |
-| End-to-end validation | Planned |
+| End-to-end validation evidence | Planned |
 
 ## Documentation
 
