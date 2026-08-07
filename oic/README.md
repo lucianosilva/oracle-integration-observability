@@ -56,7 +56,7 @@ Read the documents according to the task being performed:
 ## Recommended implementation order
 
 1. Validate the database objects and package.
-2. Configure the `OIO_DB` connection.
+2. Configure the `OIO_TRACE_DB` connection.
 3. Build `OIO_LOG_EVENT` as an asynchronous one-way integration.
 4. Test both logger operations independently.
 5. Build `OIO_SAMPLE_BUSINESS_FLOW`.

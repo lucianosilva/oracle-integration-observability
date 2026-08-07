@@ -14,10 +14,10 @@ The database ownership and runtime model is defined in the [architecture documen
 
 | Property | Recommended value |
 |---|---|
-| Connection name | `OIO_DB` |
-| Identifier | `OIO_DB` |
+| Connection name | `OIO_TRACE_DB` |
+| Identifier | `OIO_TRACE_DB` |
 | Adapter | Oracle Database Adapter |
-| Usage | Invoke |
+| Usage | Trigger and invoke |
 | Runtime user | `OIO_RUNTIME` |
 | Owner schema | `OIO_OWNER` |
 | Package | `OIO_TRACE_API` |
@@ -57,7 +57,7 @@ This repository does not prescribe a universal network design.
 In Oracle Integration:
 
 1. Create an Oracle Database Adapter connection.
-2. Set the name and identifier to `OIO_DB`.
+2. Set the name and identifier to `OIO_TRACE_DB`.
 3. Configure the environment-specific endpoint and security policy.
 4. Authenticate with `OIO_RUNTIME`.
 5. Test the connection.
@@ -114,7 +114,7 @@ Because `OIO_LOG_EVENT` is asynchronous, a successful handoff does not prove tha
 - [ ] `OIO_RUNTIME` can create a session.
 - [ ] `OIO_RUNTIME` can execute the package.
 - [ ] `OIO_RUNTIME` cannot directly access OIO tables.
-- [ ] The `OIO_DB` connection test succeeds.
+- [ ] The `OIO_TRACE_DB` connection test succeeds.
 - [ ] Both procedures are visible to the adapter.
 - [ ] The asynchronous child instance completes successfully.
 - [ ] A create operation eventually generates the expected database rows.

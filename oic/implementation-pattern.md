@@ -62,7 +62,7 @@ The operation is selected by the HTTP method and resource. No routing property i
 flowchart LR
     A[Asynchronous CreateTrace request] --> B[Basic validation]
     B --> C[Serialize flat JSON]
-    C --> D[OIO_DB.CreateOIOTrace]
+    C --> D[OIO_TRACE_DB.CreateOIOTrace]
     D --> E[Child instance completes]
 ```
 
@@ -82,7 +82,7 @@ No application-level success response is returned to the parent. The asynchronou
 flowchart LR
     A[Asynchronous status request] --> B[Basic validation]
     B --> C[Serialize flat JSON]
-    C --> D[OIO_DB.UpdateOIOStatus]
+    C --> D[OIO_TRACE_DB.UpdateOIOStatus]
     D --> E[Child instance completes]
 ```
 
