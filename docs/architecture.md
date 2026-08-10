@@ -484,16 +484,12 @@ oracle-integration-observability/
 - The physical attribute fields are generic and require configuration documentation for each integration.
 - Status update matching can affect multiple traces when the provided identifiers are not unique.
 - The PL/SQL implementation supports JSON as the canonical contract and also contains XML parsing compatibility logic.
-- `OIO_LOG_EVENT` is included, but the demonstration `OIO_SAMPLE_BUSINESS_FLOW` is currently documented rather than exported.
-- No user interface, reconciliation process, or external alerting component is included in the current release.
+- No external alerting component is included in the current release.
 
 ## 14. Planned evolution
 
 Potential future increments include:
 
-- An exported `OIO_SAMPLE_BUSINESS_FLOW` demonstration integration.
-- Sanitized OIC implementation screenshots.
-- APEX operational pages.
 - ORDS APIs and OpenAPI definitions.
 - Grafana dashboards and alerting examples.
 - Automated installation and regression tests.
