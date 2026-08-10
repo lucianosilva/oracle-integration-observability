@@ -28,13 +28,13 @@ The current implementation includes:
 - A support view that exposes the current status together with the complete history.
 - Separate owner and optional runtime database users.
 - The asynchronous `OIO_LOG_EVENT` Oracle Integration component.
+- An exported `OIO_SAMPLE_BUSINESS_FLOW` demonstration integration.
 - A sanitized Oracle Integration export for `OIO_LOG_EVENT`.
 - Native OIC fault generation when database persistence returns a non-success result.
+- An Oracle APEX application export.
 
 The current version does not include:
 
-- An exported `OIO_SAMPLE_BUSINESS_FLOW` demonstration integration.
-- An Oracle APEX application export.
 - ORDS endpoints.
 - Grafana dashboards or alert rules.
 - Automated deployment pipelines.
@@ -418,21 +418,63 @@ The relevant repository areas follow this structure:
 
 ```text
 oracle-integration-observability/
-├── contracts/
-│   └── examples/
-├── database/
-│   └── install/
-├── docs/
-│   ├── architecture.md
-│   └── logging-contract.md
-└── oic/
-    ├── README.md
-    ├── connection-setup.md
-    ├── implementation-pattern.md
-    ├── mapping-reference.md
-    ├── fault-handler-pattern.md
-    └── export/
-        └── OIO_LOG_EVENT_01.00.0000.iar
+├── oic
+│   ├── screenshot
+│   │   ├── OIO_TRACE_DB_connection.png
+│   │   ├── OIO_SAMPLE_BUSINESS_FLOW.png
+│   │   ├── OIO_LOG_EVENT_main.png
+│   │   └── OIO_LOG_EVENT_global_handling.png
+│   ├── mapping-reference.md
+│   ├── implementation-pattern.md
+│   ├── fault-handler-pattern.md
+│   ├── export
+│   │   ├── OIO_SAMPLE_BUSINESS_FLOW_01.00.0000.iar
+│   │   └── OIO_LOG_EVENT_01.00.0000.iar
+│   ├── connection-setup.md
+│   └── README.md
+├── docs
+│   ├── logging-contract.md
+│   └── architecture.md
+├── database
+│   └── install
+│       ├── validation_queries_oio.sql
+│       ├── sample_data_oio.sql
+│       ├── oio_trace_api_pks.sql
+│       ├── oio_trace_api_pkb.sql
+│       ├── README.md
+│       ├── 06_oio_v_trace_current.sql
+│       ├── 05_oio_views.sql
+│       ├── 05_oio_v_trace_status_history.sql
+│       ├── 04_oio_trace_payload.sql
+│       ├── 03_oio_trace_event.sql
+│       ├── 02_oio_trace.sql
+│       ├── 01_oio_integration_cfg.sql
+│       ├── 00_oio_runtime_creation.sql
+│       └── 00_oio_owner_creation.sql
+├── contracts
+│   └── examples
+│       ├── README.md
+│       ├── 06_update_status_in_progress.json
+│       ├── 05_update_status_resolved.json
+│       ├── 04_create_po_sync_success.json
+│       ├── 03_create_technical_error.json
+│       ├── 02_create_business_error.json
+│       └── 01_create_success.json
+├── apex
+│   ├── screenshots
+│   │   ├── transaction-search_event_history_02.png
+│   │   ├── transaction-search_event_history_01.png
+│   │   ├── transaction-search_02.png
+│   │   ├── transaction-search_01.png
+│   │   └── transaction-event_history-payload_01.png
+│   ├── export
+│   │   └── f101
+│   │       ├── install.sql
+│   │       └── application
+│   │           ├── ** <HIDDEN>
+│   └── README.md
+├── README.md
+└── LICENSE
 ```
 
 ## 13. Current limitations
