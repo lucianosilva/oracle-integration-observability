@@ -197,7 +197,7 @@ The current export contains SQL references to the `OIO_OWNER` schema. If the obs
 
 ### Payload Viewer
 
-![Payload Viewer](screenshots/transaction-event-history-payload_01.png)
+![Payload Viewer](screenshots/transaction-event_history-payload_01.png)
 
 ## Repository Structure
 
