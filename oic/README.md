@@ -37,8 +37,8 @@ part of the next repository increments.
 | OIC export | Available |
 | Mapping reference | Documented |
 | Fault-handler pattern | Documented |
-| `OIO_SAMPLE_BUSINESS_FLOW` | Reference pattern |
-| Sanitized screenshots | Planned |
+| `OIO_SAMPLE_BUSINESS_FLOW` | Implemented |
+| Sanitized screenshots | Implemented |
 | End-to-end validation evidence | Planned |
 
 ## Documentation

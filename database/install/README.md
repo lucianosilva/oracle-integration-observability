@@ -18,7 +18,7 @@ This folder contains the initial OIO repository. `OIO_OWNER` creates and maintai
 
 ## Security model
 
-- `OIO_OWNER` owns `OIO_INTEGRATION_CFG`, `OIO_TRACE`, `OIO_TRACE_EVENT`, `OIO_TRACE_PAYLOAD`, `OIO_V_TRACE_STATUS_HISTORY`, and `OIO_TRACE_API`.
+- `OIO_OWNER` owns `OIO_INTEGRATION_CFG`, `OIO_TRACE`, `OIO_TRACE_EVENT`, `OIO_TRACE_PAYLOAD`,`OIO_V_TRACE_PAYLOAD`, `OIO_V_TRACE_STATUS_HISTORY`, `OIO_V_TRACE_CURRENT`, and `OIO_TRACE_API`.
 - `OIO_RUNTIME` is the OIC connection user. It receives only `CREATE SESSION` and `EXECUTE` on `OIO_OWNER.OIO_TRACE_API`.
 - No direct privileges on tables are granted to `OIO_RUNTIME`.
 
