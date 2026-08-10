@@ -185,9 +185,9 @@ The current export contains SQL references to the `OIO_OWNER` schema. If the obs
 
 ### Transaction Search
 
-![Transaction Search](screenshots/transaction-search-01.png)
+![Transaction Search](screenshots/transaction-search_01.png)
 
-![Transaction Search - Custom Range](screenshots/transaction-search-02.png)
+![Transaction Search - Custom Range](screenshots/transaction-search_02.png)
 
 ### Event History
 
@@ -210,8 +210,8 @@ apex/
 │       └── application/
 └── screenshots/
     ├── transaction-event-history-payload_01.png
-    ├── transaction-search-01.png
-    ├── transaction-search-02.png
+    ├── transaction-search_01.png
+    ├── transaction-search_02.png
     ├── transaction-search_event_history_01.png
     └── transaction-search_event_history_02.png
 ```

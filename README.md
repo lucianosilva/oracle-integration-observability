@@ -65,7 +65,7 @@ For the complete design, see [Architecture](docs/architecture.md).
 | JSON examples | Available |
 | Architecture documentation | Available |
 | Oracle Integration implementation | Available |
-| Oracle APEX operational console | Planned |
+| Oracle APEX operational console | Available |
 | ORDS and Grafana extension | Planned |
 | Automated deployment and tests | Planned |
 
