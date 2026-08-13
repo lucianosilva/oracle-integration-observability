@@ -1,0 +1,1388 @@
+---
+# ====== Page: Monitoring Dashboard ==========================
+id: 1
+identification: 
+  name: Monitoring Dashboard
+  alias: MONITOR
+  title: Monitoring Dashboard
+
+appearance: 
+  page-mode: Normal
+  page-template: Theme Default
+  template-options: 
+  - '#DEFAULT#'
+
+navigation-menu: 
+  override-user-interface-level: false
+
+navigation: 
+  cursor-focus: Do not focus cursor
+  warn-on-unsaved-changes: false
+
+security: 
+  authentication: Page Requires Authentication
+  deep-linking: Application Default
+  page-access-protection: Arguments Must Have Checksum
+  form-auto-complete: Off
+  browser-cache: Application Default
+
+session-management: 
+  rejoin-sessions: Application Default
+
+advanced: 
+  enable-duplicate-page-submissions: Yes - Enable page to be re-posted
+  reload-on-submit: Only for Success
+
+server-cache: 
+  caching: Disabled
+
+regions: 
+- # ====== Region: Monitoring Dashboard ========================
+  id: 15891329538683391
+  identification: 
+    name: Monitoring Dashboard
+    type: Static Content
+
+  layout: 
+    sequence: 10
+    parent-region: No Parent
+    slot: REGION_POSITION_01
+    start-new-layout: false
+    start-new-row: true
+    column: Automatic
+    new-column: true
+    column-span: Automatic
+
+  appearance: 
+    template: Hero
+    template-options: 
+    - '#DEFAULT#'
+    render-components: Above Content
+
+  accessibility: 
+    use-landmark: true
+    landmark-type: Template Default
+
+  image: 
+    file-url: '#APP_FILES#icons/app-icon-512.png'
+
+  advanced: 
+    region-display-selector: false
+    exclude-title-from-translation: false
+
+  customization: 
+    customizable: Not Customizable By End Users
+
+  attributes: 
+    settings: 
+      output-as: HTML
+      expand-shortcuts: false
+
+- # ====== Region: Dashboard Filters ===========================
+  id: 17088226424380920
+  identification: 
+    name: Dashboard Filters
+    title: Dashboard Filters
+    type: Static Content
+
+  layout: 
+    sequence: 40
+    parent-region: No Parent
+    slot: BODY
+    start-new-layout: false
+    start-new-row: true
+    column: Automatic
+    new-column: true
+    column-span: Automatic
+
+  appearance: 
+    template: Standard
+    template-options: 
+    - '#DEFAULT#'
+    - t-Region--scrollBody
+    render-components: Above Content
+
+  accessibility: 
+    use-landmark: true
+    landmark-type: Template Default
+
+  advanced: 
+    region-display-selector: false
+    exclude-title-from-translation: false
+
+  customization: 
+    customizable: Not Customizable By End Users
+
+  attributes: 
+    settings: 
+      output-as: HTML
+      expand-shortcuts: false
+
+- # ====== Region: Dashboard KPIs ==============================
+  id: 17088888274380926
+  identification: 
+    name: Dashboard KPIs
+    title: Dashboard KPIs
+    type: Cards
+
+  source: 
+    location: Local Database
+    type: SQL Query
+    sql-query: |
+      with period_filter as (
+          select
+              case :P1_PERIOD
+                  when 'H1' then
+                      cast(systimestamp - interval '1' hour as timestamp)
+      
+                  when 'H6' then
+                      cast(systimestamp - interval '6' hour as timestamp)
+      
+                  when 'H24' then
+                      cast(systimestamp - interval '24' hour as timestamp)
+      
+                  when 'D7' then
+                      cast(systimestamp - interval '7' day as timestamp)
+      
+                  when 'D30' then
+                      cast(systimestamp - interval '30' day as timestamp)
+      
+                  when 'RANGE' then
+                      apex_session_state.get_timestamp('P1_DATE_FROM')
+              end as date_from,
+      
+              case
+                  when :P1_PERIOD = 'RANGE' then
+                      apex_session_state.get_timestamp('P1_DATE_TO')
+                          + interval '1' day
+                  else
+                      cast(systimestamp as timestamp)
+              end as date_to
+          from dual
+      ),
+      filtered as (
+          select
+              v.outcome,
+              v.current_status
+          from oio_owner.oio_v_trace_current v
+          cross join period_filter p
+          where v.creation_date >= p.date_from
+            and v.creation_date <  p.date_to
+      )
+      select
+          'Transactions' as title,
+          to_char(count(*), 'FM999G999G999') as value,
+          'Total transactions in the selected period' as description,
+          'u-info-text' as value_class,
+          1 as display_order
+      from filtered
+      
+      union all
+      
+      select
+          'Errors',
+          to_char(
+              sum(case when outcome = 'ERROR' then 1 else 0 end),
+              'FM999G999G999'
+          ),
+          'Transactions with errors in the selected period',
+          'u-danger-text',
+          2
+      from filtered
+      
+      union all
+      
+      select
+          'Success Rate',
+          case
+              when count(*) = 0 then '0%'
+              else
+                  to_char(
+                      100 *
+                      sum(case when outcome = 'SUCCESS' then 1 else 0 end)
+                      / count(*),
+                      'FM990D0'
+                  ) || '%'
+          end,
+          'Successful transactions in the selected period',
+          'u-success-text',
+          3
+      from filtered
+      
+      order by display_order
+    page-items-to-submit: 
+    - P1_PERIOD
+    - P1_DATE_FROM
+    - P1_DATE_TO
+
+  order-by: 
+    type: None
+
+  layout: 
+    sequence: 50
+    parent-region: No Parent
+    slot: BODY
+    start-new-layout: false
+    start-new-row: true
+    column: Automatic
+    new-column: true
+    column-span: Automatic
+
+  appearance: 
+    template: Cards Container
+    template-options: 
+    - '#DEFAULT#'
+    - t-CardsRegion--hideHeader js-addHiddenHeadingRoleDesc
+    render-components: Above Content
+
+  accessibility: 
+    use-landmark: true
+    landmark-type: Template Default
+
+  advanced: 
+    static-id: Dashboard_KPIs
+    region-display-selector: false
+    exclude-title-from-translation: false
+
+  customization: 
+    customizable: Not Customizable By End Users
+
+  attributes: 
+    id: 17088909451380927
+    appearance: 
+      layout: Grid
+      grid-columns: Auto
+
+    title: 
+      advanced-formatting: false
+      column: TITLE
+
+    subtitle: 
+      advanced-formatting: false
+
+    body: 
+      advanced-formatting: true
+      html-expression: |
+        <div class="oio-kpi-value &VALUE_CLASS.">
+            &VALUE.
+        </div>
+
+    secondary-body: 
+      advanced-formatting: false
+      column: DESCRIPTION
+
+    icon-and-badge: 
+      icon-source: No Icon
+
+    media: 
+      advanced-formatting: false
+      source: No Media
+
+    performance: 
+      lazy-loading: false
+
+    pagination: 
+      type: Scroll
+      show-total-count: false
+
+- # ====== Region: Dashboard Donuts ============================
+  id: 17089689076380934
+  identification: 
+    name: Dashboard Donuts
+    title: Success vs Error
+    type: Chart
+
+  source: 
+    location: None
+
+  layout: 
+    sequence: 60
+    parent-region: No Parent
+    slot: BODY
+    start-new-layout: false
+    start-new-row: true
+    column: Automatic
+    new-column: true
+    column-span: Automatic
+
+  appearance: 
+    template: Standard
+    template-options: 
+    - '#DEFAULT#'
+    - t-Region--scrollBody
+    render-components: Above Content
+
+  accessibility: 
+    use-landmark: true
+    landmark-type: Template Default
+
+  advanced: 
+    static-id: Dashboard_Donuts
+    region-display-selector: false
+    exclude-title-from-translation: false
+
+  security: 
+    escape-special-characters: true
+
+  customization: 
+    customizable: Not Customizable By End Users
+
+  attributes: 
+    id: 17089792426380935
+    chart: 
+      type: Donut
+
+    layout: 
+      height: 400
+
+    data-cursor: 
+      cursor: Automatic
+      behavior: Automatic
+      dim-on-hover: true
+
+    settings: 
+      pie-selection-effect: Highlight
+
+    value: 
+      pie-chart-other-threshold: 0
+      format: Decimal
+      decimal-places: 0
+      format-scaling: None
+
+    animation: 
+      on-display: Automatic
+      on-data-change: Automatic
+
+    tooltip: 
+      show: true
+      show-series-name: true
+      show-value: true
+
+    legend: 
+      show: true
+      position: Bottom
+      hide-and-show-behavior: Rescale
+
+    series: 
+    - # ====== Series: Serie1 ======================================
+      id: 17089889578380936
+      identification: 
+        name: Serie1
+
+      execution: 
+        sequence: 10
+
+      source: 
+        location: Local Database
+        type: SQL Query
+        sql-query: |
+          with period_filter as (
+              select
+                  case :P1_PERIOD
+                      when 'H1'  then cast(systimestamp - interval '1' hour  as timestamp)
+                      when 'H6'  then cast(systimestamp - interval '6' hour  as timestamp)
+                      when 'H24' then cast(systimestamp - interval '24' hour as timestamp)
+                      when 'D7'  then cast(systimestamp - interval '7' day   as timestamp)
+                      when 'D30' then cast(systimestamp - interval '30' day  as timestamp)
+                      when 'RANGE' then
+                          apex_session_state.get_timestamp('P1_DATE_FROM')
+                  end as date_from,
+          
+                  case
+                      when :P1_PERIOD = 'RANGE' then
+                          apex_session_state.get_timestamp('P1_DATE_TO')
+                              + interval '1' day
+                      else
+                          cast(systimestamp as timestamp)
+                  end as date_to
+              from dual
+          ),
+          counts as (
+              select
+                  v.outcome,
+                  count(*) as total
+              from oio_owner.oio_v_trace_current v
+              cross join period_filter p
+              where v.creation_date >= p.date_from
+                and v.creation_date < p.date_to
+              group by v.outcome
+          )
+          select
+              initcap(lower(outcome))
+                  || ' - '
+                  || to_char(total, 'FM999G999G999')
+                  || ' ('
+                  || to_char(
+                      100 * ratio_to_report(total) over (),
+                      'FM990D0'
+                  )
+                  || '%)' as label,
+          
+              total as value,
+          
+              case outcome
+                  when 'ERROR'   then '#C74634'
+                  when 'SUCCESS' then '#3A7D44'
+                  else '#6B7785'
+              end as color
+          
+          from counts
+          order by outcome
+        page-items-to-submit: 
+        - P1_PERIOD
+        - P1_DATE_FROM
+        - P1_DATE_TO
+
+      order-by: 
+        type: None
+
+      column-mapping: 
+        label: LABEL
+        value: VALUE
+
+      appearance: 
+        color: '&COLOR.'
+
+      label: 
+        show: false
+
+- # ====== Region: Transaction Volume ==========================
+  id: 17090153546380939
+  identification: 
+    name: Transaction Volume
+    title: Transaction Volume
+    type: Chart
+
+  source: 
+    location: None
+
+  layout: 
+    sequence: 70
+    parent-region: No Parent
+    slot: BODY
+    start-new-layout: false
+    start-new-row: false
+    column: Automatic
+    new-column: true
+    column-span: Automatic
+
+  appearance: 
+    template: Standard
+    template-options: 
+    - '#DEFAULT#'
+    - t-Region--scrollBody
+    render-components: Above Content
+
+  accessibility: 
+    use-landmark: true
+    landmark-type: Template Default
+
+  advanced: 
+    static-id: Transaction_Volume
+    region-display-selector: false
+    exclude-title-from-translation: false
+
+  security: 
+    escape-special-characters: true
+
+  customization: 
+    customizable: Not Customizable By End Users
+
+  attributes: 
+    id: 17090222853380940
+    chart: 
+      type: Line
+
+    appearance: 
+      orientation: Vertical
+      stack: false
+
+    layout: 
+      height: 400
+
+    data-cursor: 
+      cursor: Automatic
+      behavior: Automatic
+      dim-on-hover: true
+
+    multi-series-chart-data: 
+      fill-gaps-in-chart-data: true
+      sort-order: Label - Ascending
+      render-gap-as-zero: true
+
+    settings: 
+      zoom-and-scroll: No
+
+    animation: 
+      on-display: Automatic
+      on-data-change: Automatic
+
+    tooltip: 
+      show: true
+      show-series-name: true
+      show-group-name: true
+      show-value: true
+
+    legend: 
+      show: false
+
+    series: 
+    - # ====== Series: Transaction Volume ==========================
+      id: 17090384081380941
+      identification: 
+        name: Transaction Volume
+
+      execution: 
+        sequence: 10
+
+      source: 
+        location: Local Database
+        type: SQL Query
+        sql-query: |
+          with period_filter as (
+              select
+                  case :P1_PERIOD
+                      when 'H1' then
+                          cast(systimestamp - interval '1' hour as timestamp)
+          
+                      when 'H6' then
+                          cast(systimestamp - interval '6' hour as timestamp)
+          
+                      when 'H24' then
+                          cast(systimestamp - interval '24' hour as timestamp)
+          
+                      when 'D7' then
+                          cast(systimestamp - interval '7' day as timestamp)
+          
+                      when 'D30' then
+                          cast(systimestamp - interval '30' day as timestamp)
+          
+                      when 'RANGE' then
+                          apex_session_state.get_timestamp('P1_DATE_FROM')
+                  end as date_from,
+          
+                  case
+                      when :P1_PERIOD = 'RANGE' then
+                          apex_session_state.get_timestamp('P1_DATE_TO')
+                              + interval '1' day
+                      else
+                          cast(systimestamp as timestamp)
+                  end as date_to
+              from dual
+          ),
+          base as (
+              select
+                  cast(v.creation_date as date) as creation_date
+              from oio_owner.oio_v_trace_current v
+              cross join period_filter p
+              where v.creation_date >= p.date_from
+                and v.creation_date <  p.date_to
+          ),
+          bucketed as (
+              select
+                  case
+                      -- Last hour: 5-minute buckets
+                      when :P1_PERIOD = 'H1' then
+                          trunc(creation_date, 'HH24')
+                          + floor(
+                              to_number(to_char(creation_date, 'MI')) / 5
+                            ) * 5 / 1440
+          
+                      -- Last 6 hours: 15-minute buckets
+                      when :P1_PERIOD = 'H6' then
+                          trunc(creation_date, 'HH24')
+                          + floor(
+                              to_number(to_char(creation_date, 'MI')) / 15
+                            ) * 15 / 1440
+          
+                      -- Last 24 hours: hourly
+                      when :P1_PERIOD = 'H24' then
+                          trunc(creation_date, 'HH24')
+          
+                      -- Last 7 days: 6-hour buckets
+                      when :P1_PERIOD = 'D7' then
+                          trunc(creation_date)
+                          + floor(
+                              to_number(to_char(creation_date, 'HH24')) / 6
+                            ) * 6 / 24
+          
+                      -- Last 30 days / Custom range: daily
+                      else
+                          trunc(creation_date)
+                  end as time_bucket
+              from base
+          )
+          select
+              time_bucket,
+          
+              case
+                  when :P1_PERIOD in ('H1', 'H6') then
+                      to_char(time_bucket, 'HH24:MI')
+          
+                  when :P1_PERIOD in ('H24', 'D7') then
+                      to_char(time_bucket, 'DD/MM HH24:MI')
+          
+                  when :P1_PERIOD in ('D30', 'RANGE') then
+                      to_char(time_bucket, 'DD/MM/YYYY')
+          
+                  else
+                      to_char(time_bucket, 'DD/MM/YYYY HH24:MI')
+              end as time_label,
+          
+              count(*) as transaction_count
+          
+          from bucketed
+          group by time_bucket
+          order by time_bucket
+        page-items-to-submit: 
+        - P1_PERIOD
+        - P1_DATE_FROM
+        - P1_DATE_TO
+
+      order-by: 
+        type: None
+
+      column-mapping: 
+        label: TIME_LABEL
+        value: TRANSACTION_COUNT
+
+      appearance: 
+        assigned-to-y2-axis: false
+
+      line: 
+        style: Solid
+        type: Curved
+
+      marker: 
+        show: Automatic
+        shape: Automatic
+
+      label: 
+        show: false
+
+    axes: 
+    - # ====== Axis: x =============================================
+      id: 17090465319380942
+      identification: 
+        name: x
+        show-axis: true
+
+      value: 
+        format-scaling: Automatic
+        baseline-scaling: Zero
+        scale: Linear
+
+      major-ticks: 
+        show: Yes
+
+      minor-ticks: 
+        show: false
+
+      tick-label: 
+        show: true
+        rotation: true
+        position: Outside
+
+    - # ====== Axis: y =============================================
+      id: 17090567316380943
+      identification: 
+        name: y
+        show-axis: true
+
+      value: 
+        format: Decimal
+        decimal-places: 0
+        format-scaling: None
+        baseline-scaling: Zero
+        scale: Linear
+
+      appearance: 
+        position: Automatic
+
+      major-ticks: 
+        show: Yes
+
+      minor-ticks: 
+        show: false
+
+      tick-label: 
+        show: true
+
+    - # ====== Axis: y2 ============================================
+      id: 17090649772380944
+      identification: 
+        name: y2
+        show-axis: false
+
+      value: 
+        format-scaling: Automatic
+        baseline-scaling: Zero
+        scale: Linear
+
+      appearance: 
+        position: Automatic
+
+      major-ticks: 
+        show: Yes
+
+      minor-ticks: 
+        show: false
+
+      tick-label: 
+        show: true
+
+      dual-y-axes: 
+        show: Automatic
+
+- # ====== Region: Top Integrations by Error ===================
+  id: 17090733919380945
+  identification: 
+    name: Top Integrations by Error
+    type: Chart
+
+  source: 
+    location: None
+
+  layout: 
+    sequence: 80
+    parent-region: No Parent
+    slot: BODY
+    start-new-layout: false
+    start-new-row: true
+    column: Automatic
+    new-column: true
+    column-span: Automatic
+
+  appearance: 
+    template: Standard
+    template-options: 
+    - '#DEFAULT#'
+    - t-Region--scrollBody
+    render-components: Above Content
+
+  accessibility: 
+    use-landmark: true
+    landmark-type: Template Default
+
+  advanced: 
+    static-id: Top_Integrations
+    region-display-selector: false
+    exclude-title-from-translation: false
+
+  security: 
+    escape-special-characters: true
+
+  customization: 
+    customizable: Not Customizable By End Users
+
+  attributes: 
+    id: 17090875938380946
+    chart: 
+      type: Bar
+
+    appearance: 
+      orientation: Vertical
+      stack: true
+      stack-label: true
+
+    layout: 
+      height: 400
+
+    data-cursor: 
+      cursor: Automatic
+      behavior: Automatic
+      dim-on-hover: true
+
+    multi-series-chart-data: 
+      fill-gaps-in-chart-data: true
+      sort-order: Value - Descending
+      render-gap-as-zero: true
+
+    settings: 
+      zoom-and-scroll: No
+
+    animation: 
+      on-display: Automatic
+      on-data-change: Automatic
+
+    tooltip: 
+      show: true
+      show-series-name: true
+      show-group-name: true
+      show-value: true
+
+    legend: 
+      show: false
+
+    series: 
+    - # ====== Series: New =========================================
+      id: 17090900488380947
+      identification: 
+        name: New
+
+      execution: 
+        sequence: 10
+
+      source: 
+        location: Local Database
+        type: SQL Query
+        sql-query: |
+          with period_filter as (
+              select
+                  case :P1_PERIOD
+                      when 'H1' then
+                          cast(systimestamp - interval '1' hour as timestamp)
+          
+                      when 'H6' then
+                          cast(systimestamp - interval '6' hour as timestamp)
+          
+                      when 'H24' then
+                          cast(systimestamp - interval '24' hour as timestamp)
+          
+                      when 'D7' then
+                          cast(systimestamp - interval '7' day as timestamp)
+          
+                      when 'D30' then
+                          cast(systimestamp - interval '30' day as timestamp)
+          
+                      when 'RANGE' then
+                          apex_session_state.get_timestamp('P1_DATE_FROM')
+                  end as date_from,
+          
+                  case
+                      when :P1_PERIOD = 'RANGE' then
+                          apex_session_state.get_timestamp('P1_DATE_TO')
+                              + interval '1' day
+                      else
+                          cast(systimestamp as timestamp)
+                  end as date_to
+              from dual
+          ),
+          errors_by_integration as (
+              select
+                  v.integration_key,
+                  count(*) as error_count
+              from oio_owner.oio_v_trace_current v
+              cross join period_filter p
+              where v.creation_date >= p.date_from
+                and v.creation_date <  p.date_to
+                and v.outcome = 'ERROR'
+              group by v.integration_key
+          )
+          select
+              integration_key as label,
+              error_count     as value
+          from (
+              select
+                  integration_key,
+                  error_count
+              from errors_by_integration
+              order by error_count desc
+          )
+          fetch first 10 rows only
+        page-items-to-submit: 
+        - P1_PERIOD
+        - P1_DATE_FROM
+        - P1_DATE_TO
+
+      order-by: 
+        type: None
+
+      column-mapping: 
+        label: LABEL
+        value: VALUE
+
+      appearance: 
+        color: '#c74634'
+        assigned-to-y2-axis: false
+
+      label: 
+        show: false
+
+    axes: 
+    - # ====== Axis: x =============================================
+      id: 17091001546380948
+      identification: 
+        name: x
+        show-axis: true
+
+      value: 
+        format-scaling: Automatic
+        baseline-scaling: Zero
+        scale: Linear
+
+      major-ticks: 
+        show: Yes
+
+      minor-ticks: 
+        show: false
+
+      tick-label: 
+        show: true
+        rotation: true
+        position: Outside
+
+    - # ====== Axis: y =============================================
+      id: 17091113530380949
+      identification: 
+        name: y
+        show-axis: true
+
+      value: 
+        format: Decimal
+        decimal-places: 0
+        format-scaling: None
+        baseline-scaling: Zero
+        scale: Linear
+
+      appearance: 
+        position: Automatic
+
+      major-ticks: 
+        show: Yes
+
+      minor-ticks: 
+        show: false
+
+      tick-label: 
+        show: true
+
+page-items: 
+- # ====== Page Item: P1_PERIOD ================================
+  id: 17088351016380921
+  identification: 
+    name: P1_PERIOD
+    type: Select List
+
+  label: 
+    label: Period
+    alignment: Left
+
+  settings: 
+    page-action-on-selection: None
+
+  multiple-values: 
+    type: No
+
+  layout: 
+    sequence: 10
+    region: Dashboard Filters # 17088226424380920
+    slot: BODY
+    alignment: Left
+    start-new-layout: false
+    start-new-row: true
+    column: Automatic
+    new-column: true
+    column-span: 2
+    label-column-span: Page Template Default
+
+  appearance: 
+    template: Optional - Floating
+    template-options: 
+    - '#DEFAULT#'
+    height: 1
+
+  validation: 
+    value-required: true
+
+  list-of-values: 
+    type: Static Values
+    static-values: 'STATIC2:Last hour;H1,Last 6 hours;H6,Last 24 hours;H24,Last 7 days;D7,Last 30 days;D30,Custom range;RANGE'
+    display-extra-values: true
+    display-null-value: false
+
+  advanced: 
+    warn-on-unsaved-changes: Page Default
+
+  source: 
+    type: Null
+    used: Only when current value in session state is null
+
+  default: 
+    type: Static
+    static-value: H24
+
+  session-state: 
+    storage: Per Session (Persistent)
+
+  quick-picks: 
+    show-quick-picks: false
+
+  security: 
+    session-state-protection: Unrestricted
+    store-value-encrypted-in-session-state: true
+    restricted-characters: All characters can be saved.
+
+- # ====== Page Item: P1_DATE_FROM =============================
+  id: 17088442756380922
+  identification: 
+    name: P1_DATE_FROM
+    type: Date Picker
+
+  label: 
+    label: From
+    alignment: Left
+
+  settings: 
+    show-time: false
+    display-as: Popup
+    minimum-date: None
+    maximum-date: None
+    multiple-months: No
+    use-defaults: true
+
+  layout: 
+    sequence: 20
+    region: Dashboard Filters # 17088226424380920
+    slot: BODY
+    alignment: Left
+    start-new-layout: false
+    start-new-row: false
+    column: Automatic
+    new-column: true
+    column-span: 2
+    label-column-span: Page Template Default
+
+  appearance: 
+    template: Optional - Floating
+    template-options: 
+    - '#DEFAULT#'
+    format-mask: DD/MM/YYYY
+    width: 15
+
+  validation: 
+    value-required: false
+
+  advanced: 
+    warn-on-unsaved-changes: Page Default
+
+  source: 
+    type: Null
+    used: Only when current value in session state is null
+
+  session-state: 
+    storage: Per Session (Persistent)
+
+  quick-picks: 
+    show-quick-picks: false
+
+  security: 
+    session-state-protection: Unrestricted
+    store-value-encrypted-in-session-state: true
+    restricted-characters: All characters can be saved.
+
+- # ====== Page Item: P1_DATE_TO ===============================
+  id: 17088576014380923
+  identification: 
+    name: P1_DATE_TO
+    type: Date Picker
+
+  label: 
+    label: To
+    alignment: Left
+
+  settings: 
+    show-time: false
+    display-as: Popup
+    minimum-date: None
+    maximum-date: None
+    multiple-months: No
+    use-defaults: true
+
+  layout: 
+    sequence: 30
+    region: Dashboard Filters # 17088226424380920
+    slot: BODY
+    alignment: Left
+    start-new-layout: false
+    start-new-row: false
+    column: Automatic
+    new-column: true
+    column-span: 2
+    label-column-span: Page Template Default
+
+  appearance: 
+    template: Optional - Floating
+    template-options: 
+    - '#DEFAULT#'
+    format-mask: DD/MM/YYYY
+    width: 15
+
+  validation: 
+    value-required: false
+
+  advanced: 
+    warn-on-unsaved-changes: Page Default
+
+  source: 
+    type: Null
+    used: Only when current value in session state is null
+
+  session-state: 
+    storage: Per Session (Persistent)
+
+  quick-picks: 
+    show-quick-picks: false
+
+  security: 
+    session-state-protection: Unrestricted
+    store-value-encrypted-in-session-state: true
+    restricted-characters: All characters can be saved.
+
+dynamic-actions: 
+- # ====== Dynamic Action: Toggle Custom Range =================
+  id: 17089097093380928
+  identification: 
+    name: Toggle Custom Range
+
+  execution: 
+    sequence: 10
+    event-scope: Static
+    type: Immediate
+
+  when: 
+    event: Change
+    selection-type: Item(s)
+    item(s): 
+    - P1_PERIOD
+
+  client-side-condition: 
+    type: Item = Value
+    item: P1_PERIOD
+    value: RANGE
+
+  actions: 
+  - # ====== Action: Show Range Fields ===========================
+    id: 17089181369380929
+    identification: 
+      name: Show Range Fields
+      action: Show
+
+    affected-elements: 
+      selection-type: Item(s)
+      item(s): 
+      - P1_DATE_FROM
+      - P1_DATE_TO
+
+    execution: 
+      sequence: 10
+      event: Toggle Custom Range # 17089097093380928
+      fire-when-event-result-is: True
+      fire-on-initialization: true
+
+  - # ====== Action: Execute JavaScript Code =====================
+    id: 17089200728380930
+    identification: 
+      action: Execute JavaScript Code
+
+    settings: 
+      code: |
+        apex.item("P1_DATE_FROM").setValue("");
+        apex.item("P1_DATE_TO").setValue("");
+        apex.message.clearErrors();
+
+    execution: 
+      sequence: 10
+      event: Toggle Custom Range # 17089097093380928
+      fire-when-event-result-is: False
+      fire-on-initialization: false
+
+  - # ====== Action: Hide Range Fields ===========================
+    id: 17089347427380931
+    identification: 
+      name: Hide Range Fields
+      action: Hide
+
+    affected-elements: 
+      selection-type: Item(s)
+      item(s): 
+      - P1_DATE_FROM
+      - P1_DATE_TO
+
+    execution: 
+      sequence: 20
+      event: Toggle Custom Range # 17089097093380928
+      fire-when-event-result-is: False
+      fire-on-initialization: true
+
+- # ====== Dynamic Action: Refresh Transactions ================
+  id: 17089423237380932
+  identification: 
+    name: Refresh Transactions
+
+  execution: 
+    sequence: 20
+    event-scope: Static
+    type: Immediate
+
+  when: 
+    event: Change
+    selection-type: Item(s)
+    item(s): 
+    - P1_DATE_FROM
+    - P1_DATE_TO
+    - P1_PERIOD
+
+  client-side-condition: 
+    type: Item != Value
+    item: P1_PERIOD
+    value: RANGE
+
+  actions: 
+  - # ====== Action: Refresh KPIs ================================
+    id: 17089507125380933
+    identification: 
+      name: Refresh KPIs
+      action: Refresh
+
+    settings: 
+      maintain-pagination: false
+
+    affected-elements: 
+      selection-type: Region
+      region: Dashboard KPIs # 17088888274380926
+
+    execution: 
+      sequence: 10
+      event: Refresh Transactions # 17089423237380932
+      fire-when-event-result-is: True
+      fire-on-initialization: false
+
+  - # ====== Action: Refresh Donuts ==============================
+    id: 17674087489037405
+    identification: 
+      name: Refresh Donuts
+      action: Refresh
+
+    settings: 
+      maintain-pagination: false
+
+    affected-elements: 
+      selection-type: Region
+      region: Dashboard Donuts # 17089689076380934
+
+    execution: 
+      sequence: 20
+      event: Refresh Transactions # 17089423237380932
+      fire-when-event-result-is: True
+      fire-on-initialization: false
+
+  - # ====== Action: Refresh Transactions Donuts =================
+    id: 17674184610037406
+    identification: 
+      name: Refresh Transactions Donuts
+      action: Refresh
+
+    settings: 
+      maintain-pagination: false
+
+    affected-elements: 
+      selection-type: Region
+      region: Transaction Volume # 17090153546380939
+
+    execution: 
+      sequence: 30
+      event: Refresh Transactions # 17089423237380932
+      fire-when-event-result-is: True
+      fire-on-initialization: false
+
+  - # ====== Action: Refresh Top Errors ==========================
+    id: 17674278189037407
+    identification: 
+      name: Refresh Top Errors
+      action: Refresh
+
+    settings: 
+      maintain-pagination: false
+
+    affected-elements: 
+      selection-type: Region
+      region: Top Integrations by Error # 17090733919380945
+
+    execution: 
+      sequence: 40
+      event: Refresh Transactions # 17089423237380932
+      fire-when-event-result-is: True
+      fire-on-initialization: false
+
+- # ====== Dynamic Action: Validate Custom Range ===============
+  id: 17673873131037403
+  identification: 
+    name: Validate Custom Range
+
+  execution: 
+    sequence: 30
+    event-scope: Static
+    type: Immediate
+
+  when: 
+    event: Change
+    selection-type: Item(s)
+    item(s): 
+    - P1_DATE_FROM
+    - P1_DATE_TO
+
+  client-side-condition: 
+    type: Item = Value
+    item: P1_PERIOD
+    value: RANGE
+
+  actions: 
+  - # ====== Action: Validate and Refresh Range ==================
+    id: 17673985683037404
+    identification: 
+      name: Validate and Refresh Range
+      action: Execute JavaScript Code
+
+    settings: 
+      code: |
+        apex.message.clearErrors();
+        
+        const fromValue = apex.item("P1_DATE_FROM").getValue();
+        const toValue   = apex.item("P1_DATE_TO").getValue();
+        
+        if (!fromValue || !toValue) {
+            return;
+        }
+        
+        const fromDate = apex.date.parse(fromValue, "DD/MM/YYYY");
+        const toDate   = apex.date.parse(toValue, "DD/MM/YYYY");
+        
+        if (toDate < fromDate) {
+            apex.message.showErrors([{
+                type: "error",
+                location: ["inline"],
+                pageItem: "P1_DATE_TO",
+                message: "To date must be greater than or equal to From date.",
+                unsafe: false
+            }]);
+            return;
+        }
+        
+        const millisecondsPerDay = 86400000;
+        
+        const days =
+            Math.floor((toDate - fromDate) / millisecondsPerDay) + 1;
+        
+        if (days > 90) {
+            apex.message.showErrors([{
+                type: "error",
+                location: ["inline"],
+                pageItem: "P1_DATE_TO",
+                message: "The custom date range cannot exceed 90 days.",
+                unsafe: false
+            }]);
+            return;
+        }
+        
+        apex.region("Dashboard_KPIs").refresh();
+        apex.region("Dashboard_Donuts").refresh();
+        apex.region("Transaction_Volume").refresh();
+        apex.region("Top_Integrations").refresh();
+
+    execution: 
+      sequence: 10
+      event: Validate Custom Range # 17673873131037403
+      fire-when-event-result-is: True
+      fire-on-initialization: false
+

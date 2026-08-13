@@ -1,0 +1,2645 @@
+---
+# ====== Page: Technical Operations ==========================
+id: 4
+identification: 
+  name: Technical Operations
+  alias: TECHNICAL-OPERATIONS
+  title: Technical Operations
+
+appearance: 
+  page-mode: Normal
+  page-template: Theme Default
+  template-options: 
+  - '#DEFAULT#'
+
+navigation-menu: 
+  override-user-interface-level: false
+
+navigation: 
+  cursor-focus: Do not focus cursor
+  warn-on-unsaved-changes: false
+
+security: 
+  authentication: Page Requires Authentication
+  deep-linking: Application Default
+  page-access-protection: Arguments Must Have Checksum
+  form-auto-complete: Off
+  browser-cache: Application Default
+
+session-management: 
+  rejoin-sessions: Application Default
+
+advanced: 
+  enable-duplicate-page-submissions: Yes - Enable page to be re-posted
+  reload-on-submit: Only for Success
+
+server-cache: 
+  caching: Disabled
+
+regions: 
+- # ====== Region: Dashboard Filters ===========================
+  id: 17674357759037408
+  identification: 
+    name: Dashboard Filters
+    title: Dashboard Filters
+    type: Static Content
+
+  layout: 
+    sequence: 10
+    parent-region: No Parent
+    slot: BODY
+    start-new-layout: false
+    start-new-row: true
+    column: Automatic
+    new-column: true
+    column-span: Automatic
+
+  appearance: 
+    template: Standard
+    template-options: 
+    - '#DEFAULT#'
+    - t-Region--scrollBody
+    render-components: Above Content
+
+  accessibility: 
+    use-landmark: true
+    landmark-type: Template Default
+
+  advanced: 
+    static-id: P4_Dashboard_Filters
+    region-display-selector: false
+    exclude-title-from-translation: false
+
+  customization: 
+    customizable: Not Customizable By End Users
+
+  attributes: 
+    settings: 
+      output-as: HTML
+      expand-shortcuts: false
+
+- # ====== Region: Technical KPIs ==============================
+  id: 17674817963037413
+  identification: 
+    name: Technical KPIs
+    title: Technical KPIs
+    type: Cards
+
+  source: 
+    location: Local Database
+    type: SQL Query
+    sql-query: |
+      with period_filter as (
+          select
+              case :P4_PERIOD
+                  when 'H1'  then cast(systimestamp - interval '1' hour as timestamp)
+                  when 'H6'  then cast(systimestamp - interval '6' hour as timestamp)
+                  when 'H24' then cast(systimestamp - interval '24' hour as timestamp)
+                  when 'D7'  then cast(systimestamp - interval '7' day as timestamp)
+                  when 'D30' then cast(systimestamp - interval '30' day as timestamp)
+                  when 'RANGE' then apex_session_state.get_timestamp('P4_DATE_FROM')
+              end as date_from,
+              case
+                  when :P4_PERIOD = 'RANGE' then
+                      apex_session_state.get_timestamp('P4_DATE_TO')
+                          + interval '1' day
+                  else
+                      cast(systimestamp as timestamp)
+              end as date_to
+          from dual
+      ),
+      filtered as (
+          select
+              v.*
+          from oio_owner.oio_v_trace_current v
+          cross join period_filter p
+          where v.creation_date >= p.date_from
+            and v.creation_date <  p.date_to
+            and (
+             :P4_INTEGRATION_KEY is null
+             or v.integration_key = :P4_INTEGRATION_KEY
+          )
+      )
+      select
+          'Errors' as title,
+          to_char(
+              sum(case when outcome = 'ERROR' then 1 else 0 end),
+              'FM999G999G999'
+          ) as value,
+          'Transactions with errors in the selected period' as description,
+          'u-danger-text' as value_class,
+          1 as display_order
+      from filtered
+      union all
+      select
+          'Error Rate',
+          case
+              when count(*) = 0 then '0%'
+              else
+                  to_char(
+                      100 *
+                      sum(case when outcome = 'ERROR' then 1 else 0 end)
+                      / count(*),
+                      'FM990D0'
+                  ) || '%'
+          end,
+          'Percentage of transactions with errors',
+          'u-danger-text',
+          2
+      from filtered
+      union all
+      select
+          'Potentially Stuck',
+          to_char(
+              sum(
+                  case
+                      when current_status in ('RECEIVED', 'IN_PROGRESS')
+                       and latest_event_timestamp <
+                           systimestamp - interval '30' minute
+                      then 1
+                      else 0
+                  end
+              ),
+              'FM999G999G999'
+          ),
+          'No event activity for more than 30 minutes',
+          'u-warning-text',
+          3
+      from filtered
+      union all
+      select
+          'Affected Integrations',
+          to_char(
+              count(
+                  distinct case
+                      when outcome = 'ERROR'
+                      then integration_key
+                  end
+              ),
+              'FM999G999G999'
+          ),
+          'Integrations with errors in the selected period',
+          'u-info-text',
+          4
+      from filtered
+      
+      order by display_order
+    page-items-to-submit: 
+    - P4_PERIOD
+    - P4_DATE_FROM
+    - P4_DATE_TO
+    - P4_INTEGRATION_KEY
+
+  order-by: 
+    type: None
+
+  layout: 
+    sequence: 20
+    parent-region: No Parent
+    slot: BODY
+    start-new-layout: false
+    start-new-row: true
+    column: Automatic
+    new-column: true
+    column-span: Automatic
+
+  appearance: 
+    template: Cards Container
+    template-options: 
+    - '#DEFAULT#'
+    - t-CardsRegion--hideHeader js-addHiddenHeadingRoleDesc
+    render-components: Above Content
+
+  accessibility: 
+    use-landmark: true
+    landmark-type: Template Default
+
+  advanced: 
+    static-id: P4_Technical_KPIs
+    region-display-selector: false
+    exclude-title-from-translation: false
+
+  customization: 
+    customizable: Not Customizable By End Users
+
+  attributes: 
+    id: 17674902973037414
+    appearance: 
+      layout: Grid
+      grid-columns: Auto
+
+    title: 
+      advanced-formatting: false
+      column: TITLE
+
+    subtitle: 
+      advanced-formatting: false
+
+    body: 
+      advanced-formatting: true
+      html-expression: |
+        <div class="oio-kpi-value &VALUE_CLASS.">
+            &VALUE.
+        </div>
+
+    secondary-body: 
+      advanced-formatting: false
+      column: DESCRIPTION
+
+    icon-and-badge: 
+      icon-source: No Icon
+
+    media: 
+      advanced-formatting: false
+      source: No Media
+
+    performance: 
+      lazy-loading: false
+
+    pagination: 
+      type: Scroll
+      show-total-count: false
+
+- # ====== Region: Error Trend =================================
+  id: 17676621730037431
+  identification: 
+    name: Error Trend
+    title: Error Trend
+    type: Chart
+
+  source: 
+    location: None
+
+  layout: 
+    sequence: 30
+    parent-region: No Parent
+    slot: BODY
+    start-new-layout: false
+    start-new-row: true
+    column: Automatic
+    new-column: true
+    column-span: Automatic
+
+  appearance: 
+    template: Standard
+    template-options: 
+    - '#DEFAULT#'
+    - t-Region--scrollBody
+    render-components: Above Content
+
+  accessibility: 
+    use-landmark: true
+    landmark-type: Template Default
+
+  advanced: 
+    region-display-selector: false
+    exclude-title-from-translation: false
+
+  security: 
+    escape-special-characters: true
+
+  customization: 
+    customizable: Not Customizable By End Users
+
+  attributes: 
+    id: 17676745737037432
+    chart: 
+      type: Line
+
+    appearance: 
+      orientation: Vertical
+      stack: false
+
+    layout: 
+      height: 400
+
+    data-cursor: 
+      cursor: Automatic
+      behavior: Automatic
+      dim-on-hover: true
+
+    multi-series-chart-data: 
+      fill-gaps-in-chart-data: true
+      sort-order: Label - Ascending
+      render-gap-as-zero: true
+
+    settings: 
+      zoom-and-scroll: No
+
+    animation: 
+      on-display: Automatic
+      on-data-change: Automatic
+
+    tooltip: 
+      show: true
+      show-series-name: true
+      show-group-name: true
+      show-value: true
+
+    legend: 
+      show: false
+
+    series: 
+    - # ====== Series: New =========================================
+      id: 17676828919037433
+      identification: 
+        name: New
+
+      execution: 
+        sequence: 10
+
+      source: 
+        location: Local Database
+        type: SQL Query
+        sql-query: |
+          with period_filter as (
+              select
+                  case :P4_PERIOD
+                      when 'H1'  then cast(systimestamp - interval '1' hour as timestamp)
+                      when 'H6'  then cast(systimestamp - interval '6' hour as timestamp)
+                      when 'H24' then cast(systimestamp - interval '24' hour as timestamp)
+                      when 'D7'  then cast(systimestamp - interval '7' day as timestamp)
+                      when 'D30' then cast(systimestamp - interval '30' day as timestamp)
+                      when 'RANGE' then
+                          apex_session_state.get_timestamp('P4_DATE_FROM')
+                  end date_from,
+          
+                  case
+                      when :P4_PERIOD = 'RANGE' then
+                          apex_session_state.get_timestamp('P4_DATE_TO')
+                              + interval '1' day
+                      else
+                          cast(systimestamp as timestamp)
+                  end date_to
+              from dual
+          ),
+          base as (
+              select
+                  cast(v.creation_date as date) creation_date
+              from oio_owner.oio_v_trace_current v
+              cross join period_filter p
+              where v.creation_date >= p.date_from
+                and v.creation_date < p.date_to
+                and v.outcome = 'ERROR'
+                and (
+                      :P4_INTEGRATION_KEY is null
+                      or v.integration_key = :P4_INTEGRATION_KEY
+                    )
+          ),
+          bucketed as (
+              select
+                  case
+                      when :P4_PERIOD = 'H1' then
+                          trunc(creation_date,'HH24')
+                          + floor(to_number(to_char(creation_date,'MI')) / 5) * 5 / 1440
+          
+                      when :P4_PERIOD = 'H6' then
+                          trunc(creation_date,'HH24')
+                          + floor(to_number(to_char(creation_date,'MI')) / 15) * 15 / 1440
+          
+                      when :P4_PERIOD = 'H24' then
+                          trunc(creation_date,'HH24')
+          
+                      when :P4_PERIOD = 'D7' then
+                          trunc(creation_date)
+                          + floor(to_number(to_char(creation_date,'HH24')) / 6) * 6 / 24
+          
+                      else
+                          trunc(creation_date)
+                  end time_bucket
+              from base
+          )
+          select
+              case
+                  when :P4_PERIOD in ('H1','H6') then
+                      to_char(time_bucket,'HH24:MI')
+                  when :P4_PERIOD in ('H24','D7') then
+                      to_char(time_bucket,'DD/MM HH24:MI')
+                  else
+                      to_char(time_bucket,'DD/MM/YYYY')
+              end as time_label,
+          
+              count(*) as error_count
+          
+          from bucketed
+          group by time_bucket
+          order by time_bucket
+        page-items-to-submit: 
+        - P4_PERIOD
+        - P4_INTEGRATION_KEY
+        - P4_DATE_FROM
+        - P4_DATE_TO
+
+      order-by: 
+        type: None
+
+      column-mapping: 
+        label: TIME_LABEL
+        value: ERROR_COUNT
+
+      appearance: 
+        color: '#c74634'
+        assigned-to-y2-axis: false
+
+      line: 
+        style: Solid
+        type: Automatic
+
+      marker: 
+        show: Automatic
+        shape: Automatic
+
+      label: 
+        show: false
+
+    axes: 
+    - # ====== Axis: x =============================================
+      id: 17676979356037434
+      identification: 
+        name: x
+        show-axis: true
+
+      value: 
+        format-scaling: Automatic
+        baseline-scaling: Zero
+        scale: Linear
+
+      major-ticks: 
+        show: Yes
+
+      minor-ticks: 
+        show: false
+
+      tick-label: 
+        show: true
+        rotation: true
+        position: Outside
+
+    - # ====== Axis: y =============================================
+      id: 17677039104037435
+      identification: 
+        name: y
+        show-axis: true
+
+      value: 
+        format: Decimal
+        decimal-places: 0
+        format-scaling: None
+        baseline-scaling: Zero
+        scale: Linear
+
+      appearance: 
+        position: Automatic
+
+      major-ticks: 
+        show: Yes
+
+      minor-ticks: 
+        show: false
+
+      tick-label: 
+        show: true
+
+- # ====== Region: Top Error Codes =============================
+  id: 17677394281037438
+  identification: 
+    name: Top Error Codes
+    title: Top Error Codes
+    type: Chart
+
+  source: 
+    location: None
+
+  layout: 
+    sequence: 40
+    parent-region: No Parent
+    slot: BODY
+    start-new-layout: false
+    start-new-row: true
+    column: Automatic
+    new-column: true
+    column-span: Automatic
+
+  appearance: 
+    template: Standard
+    template-options: 
+    - '#DEFAULT#'
+    - t-Region--scrollBody
+    render-components: Above Content
+
+  accessibility: 
+    use-landmark: true
+    landmark-type: Template Default
+
+  advanced: 
+    region-display-selector: false
+    exclude-title-from-translation: false
+
+  security: 
+    escape-special-characters: true
+
+  customization: 
+    customizable: Not Customizable By End Users
+
+  attributes: 
+    id: 17677488965037439
+    chart: 
+      type: Bar
+
+    appearance: 
+      orientation: Vertical
+      stack: false
+
+    layout: 
+      height: 400
+
+    data-cursor: 
+      cursor: Automatic
+      behavior: Automatic
+      dim-on-hover: true
+
+    multi-series-chart-data: 
+      fill-gaps-in-chart-data: true
+      sort-order: Label - Ascending
+      render-gap-as-zero: true
+
+    settings: 
+      zoom-and-scroll: No
+
+    animation: 
+      on-display: Automatic
+      on-data-change: Automatic
+
+    tooltip: 
+      show: true
+      show-series-name: true
+      show-group-name: true
+      show-value: true
+
+    legend: 
+      show: false
+
+    series: 
+    - # ====== Series: Top Errors ==================================
+      id: 17677587823037440
+      identification: 
+        name: Top Errors
+
+      execution: 
+        sequence: 10
+
+      source: 
+        location: Local Database
+        type: SQL Query
+        sql-query: |
+          with period_filter as (
+              select
+                  case :P4_PERIOD
+                      when 'H1'  then cast(systimestamp - interval '1' hour as timestamp)
+                      when 'H6'  then cast(systimestamp - interval '6' hour as timestamp)
+                      when 'H24' then cast(systimestamp - interval '24' hour as timestamp)
+                      when 'D7'  then cast(systimestamp - interval '7' day as timestamp)
+                      when 'D30' then cast(systimestamp - interval '30' day as timestamp)
+                      when 'RANGE' then
+                          apex_session_state.get_timestamp('P4_DATE_FROM')
+                  end date_from,
+          
+                  case
+                      when :P4_PERIOD = 'RANGE' then
+                          apex_session_state.get_timestamp('P4_DATE_TO')
+                              + interval '1' day
+                      else
+                          cast(systimestamp as timestamp)
+                  end date_to
+              from dual
+          )
+          select
+              error_code label,
+              error_count value
+          from (
+              select
+                  nvl(v.error_code, 'UNCLASSIFIED') error_code,
+                  count(*) error_count
+              from oio_owner.oio_v_trace_current v
+              cross join period_filter p
+              where v.creation_date >= p.date_from
+                and v.creation_date < p.date_to
+                and v.outcome = 'ERROR'
+                and (
+                      :P4_INTEGRATION_KEY is null
+                      or v.integration_key = :P4_INTEGRATION_KEY
+                    )
+              group by nvl(v.error_code, 'UNCLASSIFIED')
+              order by error_count desc
+          )
+          fetch first 10 rows only
+        page-items-to-submit: 
+        - P4_PERIOD
+        - P4_INTEGRATION_KEY
+        - P4_DATE_FROM
+        - P4_DATE_TO
+
+      order-by: 
+        type: None
+
+      column-mapping: 
+        label: LABEL
+        value: VALUE
+
+      appearance: 
+        assigned-to-y2-axis: false
+
+      label: 
+        show: false
+
+    axes: 
+    - # ====== Axis: x =============================================
+      id: 17677610084037441
+      identification: 
+        name: x
+        show-axis: true
+
+      value: 
+        format-scaling: Automatic
+        baseline-scaling: Zero
+        scale: Linear
+
+      major-ticks: 
+        show: Yes
+
+      minor-ticks: 
+        show: false
+
+      tick-label: 
+        show: true
+        rotation: true
+        position: Outside
+
+    - # ====== Axis: y =============================================
+      id: 17677732300037442
+      identification: 
+        name: y
+        show-axis: true
+
+      value: 
+        format: Decimal
+        decimal-places: 0
+        format-scaling: None
+        baseline-scaling: Zero
+        scale: Linear
+
+      appearance: 
+        position: Automatic
+
+      major-ticks: 
+        show: Yes
+
+      minor-ticks: 
+        show: false
+
+      tick-label: 
+        show: true
+
+- # ====== Region: Potentially Stuck Transactions ==============
+  id: 17678226511037447
+  identification: 
+    name: Potentially Stuck Transactions
+    title: Potentially Stuck Transactions
+    type: Interactive Report
+
+  source: 
+    location: Local Database
+    type: SQL Query
+    sql-query: |
+      with period_filter as (
+          select
+              case :P4_PERIOD
+                  when 'H1'  then cast(systimestamp - interval '1' hour as timestamp)
+                  when 'H6'  then cast(systimestamp - interval '6' hour as timestamp)
+                  when 'H24' then cast(systimestamp - interval '24' hour as timestamp)
+                  when 'D7'  then cast(systimestamp - interval '7' day as timestamp)
+                  when 'D30' then cast(systimestamp - interval '30' day as timestamp)
+                  when 'RANGE' then
+                      apex_session_state.get_timestamp('P4_DATE_FROM')
+              end as date_from,
+      
+              case
+                  when :P4_PERIOD = 'RANGE' then
+                      apex_session_state.get_timestamp('P4_DATE_TO')
+                          + interval '1' day
+                  else
+                      cast(systimestamp as timestamp)
+              end as date_to
+          from dual
+      )
+      select
+          v.trace_id,
+          v.integration_key,
+          v.transaction_id1                         as transaction_id,
+          v.current_status,
+          case v.current_status
+            when 'RECEIVED'    then 'info'
+            when 'IN_PROGRESS' then 'warning'
+            when 'COMPLETED'   then 'success'
+            when 'FAILED'      then 'danger'
+            else 'normal'
+          end as badge_state,
+          v.latest_step_name                        as latest_step,
+          v.latest_event_timestamp,
+          round(
+              (cast(systimestamp as date)
+               - cast(v.latest_event_timestamp as date)) * 1440
+          )                                         as idle_minutes,
+          nvl(
+              v.latest_oic_instance_id,
+              v.oic_instance_id
+          )                                         as oic_instance_id,
+          v.summary
+      from oio_owner.oio_v_trace_current v
+      cross join period_filter p
+      where v.creation_date >= p.date_from
+        and v.creation_date <  p.date_to
+        and (
+              :P4_INTEGRATION_KEY is null
+              or v.integration_key = :P4_INTEGRATION_KEY
+            )
+        and v.current_status in ('RECEIVED', 'IN_PROGRESS')
+        and v.latest_event_timestamp is not null
+        and v.latest_event_timestamp <
+            cast(systimestamp - interval '30' minute as timestamp)
+      order by v.latest_event_timestamp
+    page-items-to-submit: 
+    - P4_PERIOD
+    - P4_INTEGRATION_KEY
+    - P4_DATE_FROM
+    - P4_DATE_TO
+
+  layout: 
+    sequence: 50
+    parent-region: No Parent
+    slot: BODY
+    start-new-layout: false
+    start-new-row: true
+    column: Automatic
+    new-column: true
+    column-span: Automatic
+
+  appearance: 
+    template: Standard
+    template-options: 
+    - '#DEFAULT#'
+    - t-Region--scrollBody
+    render-components: Above Content
+
+  accessibility: 
+    use-landmark: true
+    landmark-type: Template Default
+
+  advanced: 
+    region-display-selector: false
+    exclude-title-from-translation: false
+
+  server-cache: 
+    caching: Disabled
+
+  customization: 
+    customizable: Not Customizable By End Users
+
+  attributes: 
+    id: 17678318240037448
+    link: 
+      link-column: Exclude Link Column
+
+    pagination: 
+      type: Row Ranges X to Y
+      display-position: Bottom - Right
+
+    performance: 
+      lazy-loading: false
+      maximum-rows-to-process: 1000000
+
+    search-bar: 
+      include-search-bar: true
+      search-field: true
+      finder-drop-down: true
+      reports-select-list: true
+      rows-per-page-selector: false
+      maximum-rows-per-page: 15
+
+    actions-menu: 
+      include-actions-menu: true
+      filter: true
+      select-columns: true
+      rows-per-page: false
+      sort: true
+      control-break: true
+      highlight: true
+      compute: true
+      aggregate: true
+      chart: true
+      group-by: true
+      pivot: true
+      flashback: true
+      save-report: true
+      save-public-report: false
+      reset: true
+      help: true
+      download: true
+      subscription: true
+
+    download: 
+      formats: 
+      - CSV
+      - Excel
+      send-as-email: true
+
+    heading: 
+      fixed-to: Page
+
+    icon-view: 
+      show: false
+
+    detail-view: 
+      show: false
+
+    advanced: 
+      region-alias: STUCK
+
+    saved-reports: 
+    - # ====== Saved Report: Primary Report ========================
+      id: 18102960787802806
+      identification: 
+        name: Primary Report
+        alias: 181030
+
+    columns: 
+    - # ====== Column: TRACE_ID ====================================
+      id: 17678446795037449
+      identification: 
+        column-name: TRACE_ID
+        type: Hidden
+
+      heading: 
+        heading: Trace Id
+
+      layout: 
+        sequence: 10
+
+      source: 
+        primary-key: false
+
+      security: 
+        escape-special-characters: true
+
+    - # ====== Column: INTEGRATION_KEY =============================
+      id: 17678552697037450
+      identification: 
+        column-name: INTEGRATION_KEY
+        type: Plain Text
+
+      heading: 
+        heading: Integration
+        alignment: start
+
+      single-row-view: 
+        use-column-heading: true
+
+      layout: 
+        sequence: 20
+        column-alignment: start
+
+      accessibility: 
+        value-identifies-row: false
+
+      source: 
+        primary-key: false
+
+      column-filter: 
+        type: Default Based on Column Type
+
+      enable-users-to: 
+        hide: true
+        sort: true
+        filter: true
+        highlight: true
+        control-break: true
+        aggregate: true
+        compute: true
+        chart: true
+        group-by: true
+        pivot: true
+
+      security: 
+        escape-special-characters: true
+
+    - # ====== Column: TRANSACTION_ID ==============================
+      id: 18094451533790501
+      identification: 
+        column-name: TRANSACTION_ID
+        type: Link
+
+      heading: 
+        heading: Transaction Id
+        alignment: start
+
+      single-row-view: 
+        use-column-heading: true
+
+      layout: 
+        sequence: 30
+        column-alignment: start
+
+      accessibility: 
+        value-identifies-row: false
+
+      link: 
+        target: 
+          url: 'f?p=&APP_ID.:2:&SESSION.::&DEBUG.:2:P2_TRACE_ID,P2_TRANSACTION_ID:#TRACE_ID#,#TRANSACTION_ID#'
+          page: 2 # Transaction Search
+          clear-cache: 2
+          values: 
+            p2_trace_id: '#TRACE_ID#'
+            p2_transaction_id: '#TRANSACTION_ID#'
+
+        link-text: '#TRANSACTION_ID#'
+
+      source: 
+        primary-key: false
+
+      column-filter: 
+        type: Default Based on Column Type
+
+      enable-users-to: 
+        hide: true
+        sort: true
+        filter: true
+        highlight: true
+        control-break: true
+        aggregate: true
+        compute: true
+        chart: true
+        group-by: true
+        pivot: true
+
+      security: 
+        escape-special-characters: true
+
+    - # ====== Column: CURRENT_STATUS ==============================
+      id: 18094526889790502
+      identification: 
+        column-name: CURRENT_STATUS
+        type: Badge
+
+      heading: 
+        heading: Status
+        alignment: start
+
+      single-row-view: 
+        use-column-heading: true
+
+      settings: 
+        label: Status
+        value: CURRENT_STATUS
+        state: BADGE_STATE
+        display-label: false
+        style: Default
+        shape: Default
+        size: Default
+
+      layout: 
+        sequence: 40
+        column-alignment: start
+
+      accessibility: 
+        value-identifies-row: false
+
+      source: 
+        primary-key: false
+
+      enable-users-to: 
+        hide: true
+
+    - # ====== Column: LATEST_STEP =================================
+      id: 18094657746790503
+      identification: 
+        column-name: LATEST_STEP
+        type: Plain Text
+
+      heading: 
+        heading: Latest Step
+        alignment: start
+
+      single-row-view: 
+        use-column-heading: true
+
+      layout: 
+        sequence: 50
+        column-alignment: start
+
+      accessibility: 
+        value-identifies-row: false
+
+      source: 
+        primary-key: false
+
+      column-filter: 
+        type: Default Based on Column Type
+
+      enable-users-to: 
+        hide: true
+        sort: true
+        filter: true
+        highlight: true
+        control-break: true
+        aggregate: true
+        compute: true
+        chart: true
+        group-by: true
+        pivot: true
+
+      security: 
+        escape-special-characters: true
+
+    - # ====== Column: LATEST_EVENT_TIMESTAMP ======================
+      id: 18094708474790504
+      identification: 
+        column-name: LATEST_EVENT_TIMESTAMP
+        type: Hidden
+
+      heading: 
+        heading: Latest Event Timestamp
+
+      layout: 
+        sequence: 60
+
+      source: 
+        primary-key: false
+
+      security: 
+        escape-special-characters: true
+
+    - # ====== Column: IDLE_MINUTES ================================
+      id: 18094898833790505
+      identification: 
+        column-name: IDLE_MINUTES
+        type: Plain Text
+
+      heading: 
+        heading: Idle Minutes
+        alignment: end
+
+      single-row-view: 
+        use-column-heading: true
+
+      layout: 
+        sequence: 70
+        column-alignment: end
+
+      accessibility: 
+        value-identifies-row: false
+
+      source: 
+        primary-key: false
+
+      column-filter: 
+        type: Default Based on Column Type
+
+      enable-users-to: 
+        hide: true
+        sort: true
+        filter: true
+        highlight: true
+        control-break: true
+        aggregate: true
+        compute: true
+        chart: true
+        group-by: true
+        pivot: true
+
+      security: 
+        escape-special-characters: true
+
+    - # ====== Column: OIC_INSTANCE_ID =============================
+      id: 18094924939790506
+      identification: 
+        column-name: OIC_INSTANCE_ID
+        type: Plain Text
+
+      heading: 
+        heading: Oic Instance Id
+        alignment: start
+
+      single-row-view: 
+        use-column-heading: true
+
+      layout: 
+        sequence: 80
+        column-alignment: start
+
+      accessibility: 
+        value-identifies-row: false
+
+      source: 
+        primary-key: false
+
+      column-filter: 
+        type: Default Based on Column Type
+
+      enable-users-to: 
+        hide: true
+        sort: true
+        filter: true
+        highlight: true
+        control-break: true
+        aggregate: true
+        compute: true
+        chart: true
+        group-by: true
+        pivot: true
+
+      security: 
+        escape-special-characters: true
+
+    - # ====== Column: SUMMARY =====================================
+      id: 18095059762790507
+      identification: 
+        column-name: SUMMARY
+        type: Plain Text
+
+      heading: 
+        heading: Summary
+        alignment: start
+
+      single-row-view: 
+        use-column-heading: true
+
+      layout: 
+        sequence: 90
+        column-alignment: start
+
+      accessibility: 
+        value-identifies-row: false
+
+      source: 
+        primary-key: false
+
+      column-filter: 
+        type: Default Based on Column Type
+
+      enable-users-to: 
+        hide: true
+        sort: true
+        filter: true
+        highlight: true
+        control-break: true
+        aggregate: true
+        compute: true
+        chart: true
+        group-by: true
+        pivot: true
+
+      security: 
+        escape-special-characters: true
+
+    - # ====== Column: BADGE_STATE =================================
+      id: 18096763884790524
+      identification: 
+        column-name: BADGE_STATE
+        type: Plain Text
+
+      heading: 
+        heading: Badge State
+        alignment: start
+
+      single-row-view: 
+        use-column-heading: true
+
+      layout: 
+        sequence: 100
+        column-alignment: start
+
+      accessibility: 
+        value-identifies-row: false
+
+      source: 
+        primary-key: false
+
+      column-filter: 
+        type: Default Based on Column Type
+
+      enable-users-to: 
+        hide: true
+        sort: true
+        filter: true
+        highlight: true
+        control-break: true
+        aggregate: true
+        compute: true
+        chart: true
+        group-by: true
+        pivot: true
+
+      security: 
+        escape-special-characters: true
+
+    printing: 
+      output: 
+        layout: Default Report Layout
+        view-file-as: Attachment
+
+      page: 
+        size: Letter
+        orientation: Landscape
+        units: Inches
+        width: 11
+        height: 8.5
+        border-width: 0.5
+        border-color: '#666666'
+
+      page-header: 
+        font: Helvetica
+        font-weight: Normal
+        font-size: 12
+        font-color: '#000000'
+        alignment: center
+        page-header-text: Potentially Stuck Transactions
+
+      column-headings: 
+        font: Helvetica
+        font-weight: Bold
+        font-size: 10
+        font-color: '#000000'
+        background-color: '#EEEEEE'
+
+      columns: 
+        font: Helvetica
+        font-weight: Normal
+        font-size: 10
+        font-color: '#000000'
+        background-color: '#FFFFFF'
+
+      page-footer: 
+        font: Helvetica
+        font-weight: Normal
+        font-size: 12
+        font-color: '#000000'
+        alignment: center
+
+- # ====== Region: Technical Operations ========================
+  id: 17871063539991642
+  identification: 
+    name: Technical Operations
+    title: Technical Operations
+    type: Breadcrumb
+
+  source: 
+    breadcrumb: Breadcrumb # 15878391117683269
+
+  layout: 
+    sequence: 10
+    parent-region: No Parent
+    slot: REGION_POSITION_01
+    start-new-layout: false
+    start-new-row: true
+    column: Automatic
+    new-column: true
+    column-span: Automatic
+
+  appearance: 
+    template: Title Bar
+    template-options: 
+    - '#DEFAULT#'
+    - t-BreadcrumbRegion--useBreadcrumbTitle
+    render-components: Above Content
+
+  accessibility: 
+    use-landmark: true
+    landmark-type: Template Default
+
+  advanced: 
+    region-display-selector: false
+    exclude-title-from-translation: false
+
+  customization: 
+    customizable: Not Customizable By End Users
+
+  attributes: 
+    appearance: 
+      breadcrumb-template: Breadcrumb
+      template-options: 
+      - '#DEFAULT#'
+
+- # ====== Region: Recent Error Events =========================
+  id: 18095153661790508
+  identification: 
+    name: Recent Error Events
+    title: Recent Error Events
+    type: Interactive Report
+
+  source: 
+    location: Local Database
+    type: SQL Query
+    sql-query: |
+      with period_filter as (
+          select
+              case :P4_PERIOD
+                  when 'H1'  then cast(systimestamp - interval '1' hour as timestamp)
+                  when 'H6'  then cast(systimestamp - interval '6' hour as timestamp)
+                  when 'H24' then cast(systimestamp - interval '24' hour as timestamp)
+                  when 'D7'  then cast(systimestamp - interval '7' day as timestamp)
+                  when 'D30' then cast(systimestamp - interval '30' day as timestamp)
+                  when 'RANGE' then
+                      apex_session_state.get_timestamp('P4_DATE_FROM')
+              end as date_from,
+      
+              case
+                  when :P4_PERIOD = 'RANGE' then
+                      apex_session_state.get_timestamp('P4_DATE_TO')
+                          + interval '1' day
+                  else
+                      cast(systimestamp as timestamp)
+              end as date_to
+          from dual
+      )
+      select
+          h.trace_id,
+          h.event_timestamp,
+          h.integration_key,
+          h.transaction_id1                 as transaction_id,
+          h.event_type,
+          h.step_name,
+          h.history_status                  as event_status,
+          case h.history_status
+          when 'COMPLETED'   then 'success'
+          when 'FAILED'      then 'danger'
+          when 'IN_PROGRESS' then 'warning'
+          when 'RECEIVED'    then 'info'
+          else 'normal'
+      end as badge_state,
+          h.oic_instance_id,
+          h.error_code,
+          h.error_message,
+          h.summary
+      from oio_owner.oio_v_trace_status_history h
+      cross join period_filter p
+      where h.event_timestamp >= p.date_from
+        and h.event_timestamp <  p.date_to
+        and h.log_level = 'E'
+        and (
+              :P4_INTEGRATION_KEY is null
+              or h.integration_key = :P4_INTEGRATION_KEY
+            )
+      order by
+          h.event_timestamp desc,
+          h.trace_detail_id desc
+    page-items-to-submit: 
+    - P4_PERIOD
+    - P4_INTEGRATION_KEY
+    - P4_DATE_FROM
+    - P4_DATE_TO
+
+  layout: 
+    sequence: 60
+    parent-region: No Parent
+    slot: BODY
+    start-new-layout: false
+    start-new-row: true
+    column: Automatic
+    new-column: true
+    column-span: Automatic
+
+  appearance: 
+    template: Standard
+    template-options: 
+    - '#DEFAULT#'
+    - t-Region--scrollBody
+    render-components: Above Content
+
+  accessibility: 
+    use-landmark: true
+    landmark-type: Template Default
+
+  advanced: 
+    region-display-selector: false
+    exclude-title-from-translation: false
+
+  server-cache: 
+    caching: Disabled
+
+  customization: 
+    customizable: Not Customizable By End Users
+
+  attributes: 
+    id: 18095247975790509
+    link: 
+      link-column: Exclude Link Column
+
+    pagination: 
+      type: Row Ranges X to Y
+      display-position: Bottom - Right
+
+    performance: 
+      lazy-loading: false
+      maximum-rows-to-process: 1000000
+
+    search-bar: 
+      include-search-bar: true
+      search-field: true
+      finder-drop-down: true
+      reports-select-list: true
+      rows-per-page-selector: false
+      maximum-rows-per-page: 15
+
+    actions-menu: 
+      include-actions-menu: true
+      filter: true
+      select-columns: true
+      rows-per-page: false
+      sort: true
+      control-break: true
+      highlight: true
+      compute: true
+      aggregate: true
+      chart: true
+      group-by: true
+      pivot: true
+      flashback: true
+      save-report: true
+      save-public-report: false
+      reset: true
+      help: true
+      download: true
+      subscription: true
+
+    download: 
+      formats: 
+      - CSV
+      - Excel
+      send-as-email: false
+
+    heading: 
+      fixed-to: Page
+
+    icon-view: 
+      show: false
+
+    detail-view: 
+      show: false
+
+    saved-reports: 
+    - # ====== Saved Report: Primary Report ========================
+      id: 18107522925852401
+      identification: 
+        name: Primary Report
+        alias: 181076
+
+    columns: 
+    - # ====== Column: TRACE_ID ====================================
+      id: 18095305345790510
+      identification: 
+        column-name: TRACE_ID
+        type: Hidden
+
+      heading: 
+        heading: Trace Id
+
+      layout: 
+        sequence: 10
+
+      source: 
+        primary-key: false
+
+      security: 
+        escape-special-characters: true
+
+    - # ====== Column: EVENT_TIMESTAMP =============================
+      id: 18095405227790511
+      identification: 
+        column-name: EVENT_TIMESTAMP
+        type: Plain Text
+
+      heading: 
+        heading: Timestamp
+        alignment: start
+
+      single-row-view: 
+        use-column-heading: true
+
+      layout: 
+        sequence: 20
+        column-alignment: start
+
+      accessibility: 
+        value-identifies-row: false
+
+      appearance: 
+        format-mask: 'DD/MM/YYYY HH24:MI:SS'
+
+      source: 
+        primary-key: false
+
+      column-filter: 
+        type: Default Based on Column Type
+        date-ranges: All
+
+      enable-users-to: 
+        hide: true
+        sort: true
+        filter: true
+        highlight: true
+        control-break: true
+        aggregate: true
+        compute: true
+        chart: true
+        group-by: true
+        pivot: true
+
+      security: 
+        escape-special-characters: true
+
+    - # ====== Column: INTEGRATION_KEY =============================
+      id: 18095535904790512
+      identification: 
+        column-name: INTEGRATION_KEY
+        type: Plain Text
+
+      heading: 
+        heading: Integration
+        alignment: start
+
+      single-row-view: 
+        use-column-heading: true
+
+      layout: 
+        sequence: 30
+        column-alignment: start
+
+      accessibility: 
+        value-identifies-row: false
+
+      source: 
+        primary-key: false
+
+      column-filter: 
+        type: Default Based on Column Type
+
+      enable-users-to: 
+        hide: true
+        sort: true
+        filter: true
+        highlight: true
+        control-break: true
+        aggregate: true
+        compute: true
+        chart: true
+        group-by: true
+        pivot: true
+
+      security: 
+        escape-special-characters: true
+
+    - # ====== Column: TRANSACTION_ID ==============================
+      id: 18095659233790513
+      identification: 
+        column-name: TRANSACTION_ID
+        type: Link
+
+      heading: 
+        heading: Transaction ID
+        alignment: start
+
+      single-row-view: 
+        use-column-heading: true
+
+      layout: 
+        sequence: 40
+        column-alignment: start
+
+      accessibility: 
+        value-identifies-row: false
+
+      link: 
+        target: 
+          url: 'f?p=&APP_ID.:2:&SESSION.::&DEBUG.:2:P2_TRACE_ID,P2_TRANSACTION_ID:#TRACE_ID#,#TRANSACTION_ID#'
+          page: 2 # Transaction Search
+          clear-cache: 2
+          values: 
+            p2_trace_id: '#TRACE_ID#'
+            p2_transaction_id: '#TRANSACTION_ID#'
+
+        link-text: '#TRANSACTION_ID#'
+
+      source: 
+        primary-key: false
+
+      column-filter: 
+        type: Default Based on Column Type
+
+      enable-users-to: 
+        hide: true
+        sort: true
+        filter: true
+        highlight: true
+        control-break: true
+        aggregate: true
+        compute: true
+        chart: true
+        group-by: true
+        pivot: true
+
+      security: 
+        escape-special-characters: true
+
+    - # ====== Column: EVENT_TYPE ==================================
+      id: 18095761203790514
+      identification: 
+        column-name: EVENT_TYPE
+        type: Badge
+
+      heading: 
+        heading: Event
+        alignment: start
+
+      single-row-view: 
+        use-column-heading: true
+
+      settings: 
+        label: Event
+        value: EVENT_STATUS
+        state: BADGE_STATE
+        display-label: false
+        style: Default
+        shape: Default
+        size: Default
+
+      layout: 
+        sequence: 50
+        column-alignment: start
+
+      accessibility: 
+        value-identifies-row: false
+
+      source: 
+        primary-key: false
+
+      enable-users-to: 
+        hide: true
+
+    - # ====== Column: STEP_NAME ===================================
+      id: 18095871004790515
+      identification: 
+        column-name: STEP_NAME
+        type: Plain Text
+
+      heading: 
+        heading: Step
+        alignment: start
+
+      single-row-view: 
+        use-column-heading: true
+
+      layout: 
+        sequence: 60
+        column-alignment: start
+
+      accessibility: 
+        value-identifies-row: false
+
+      source: 
+        primary-key: false
+
+      column-filter: 
+        type: Default Based on Column Type
+
+      enable-users-to: 
+        hide: true
+        sort: true
+        filter: true
+        highlight: true
+        control-break: true
+        aggregate: true
+        compute: true
+        chart: true
+        group-by: true
+        pivot: true
+
+      security: 
+        escape-special-characters: true
+
+    - # ====== Column: EVENT_STATUS ================================
+      id: 18095997227790516
+      identification: 
+        column-name: EVENT_STATUS
+        type: Plain Text
+
+      heading: 
+        heading: Status
+        alignment: start
+
+      single-row-view: 
+        use-column-heading: true
+
+      layout: 
+        sequence: 70
+        column-alignment: start
+
+      accessibility: 
+        value-identifies-row: false
+
+      source: 
+        primary-key: false
+
+      column-filter: 
+        type: Default Based on Column Type
+
+      enable-users-to: 
+        hide: true
+        sort: true
+        filter: true
+        highlight: true
+        control-break: true
+        aggregate: true
+        compute: true
+        chart: true
+        group-by: true
+        pivot: true
+
+      security: 
+        escape-special-characters: true
+
+    - # ====== Column: OIC_INSTANCE_ID =============================
+      id: 18096042470790517
+      identification: 
+        column-name: OIC_INSTANCE_ID
+        type: Plain Text
+
+      heading: 
+        heading: OIC Instance
+        alignment: start
+
+      single-row-view: 
+        use-column-heading: true
+
+      layout: 
+        sequence: 80
+        column-alignment: start
+
+      accessibility: 
+        value-identifies-row: false
+
+      source: 
+        primary-key: false
+
+      column-filter: 
+        type: Default Based on Column Type
+
+      enable-users-to: 
+        hide: true
+        sort: true
+        filter: true
+        highlight: true
+        control-break: true
+        aggregate: true
+        compute: true
+        chart: true
+        group-by: true
+        pivot: true
+
+      security: 
+        escape-special-characters: true
+
+    - # ====== Column: ERROR_CODE ==================================
+      id: 18096142716790518
+      identification: 
+        column-name: ERROR_CODE
+        type: Plain Text
+
+      heading: 
+        heading: Error Code
+        alignment: start
+
+      single-row-view: 
+        use-column-heading: true
+
+      layout: 
+        sequence: 90
+        column-alignment: start
+
+      accessibility: 
+        value-identifies-row: false
+
+      source: 
+        primary-key: false
+
+      column-filter: 
+        type: Default Based on Column Type
+
+      enable-users-to: 
+        hide: true
+        sort: true
+        filter: true
+        highlight: true
+        control-break: true
+        aggregate: true
+        compute: true
+        chart: true
+        group-by: true
+        pivot: true
+
+      security: 
+        escape-special-characters: true
+
+    - # ====== Column: ERROR_MESSAGE ===============================
+      id: 18096208779790519
+      identification: 
+        column-name: ERROR_MESSAGE
+        type: Plain Text
+
+      heading: 
+        heading: Error Message
+        alignment: start
+
+      single-row-view: 
+        use-column-heading: true
+
+      layout: 
+        sequence: 100
+        column-alignment: start
+
+      accessibility: 
+        value-identifies-row: false
+
+      source: 
+        primary-key: false
+
+      column-filter: 
+        type: Default Based on Column Type
+
+      enable-users-to: 
+        hide: true
+        sort: true
+        filter: true
+        highlight: true
+        control-break: true
+        aggregate: true
+        compute: true
+        chart: true
+        group-by: true
+        pivot: true
+
+      security: 
+        escape-special-characters: true
+
+    - # ====== Column: SUMMARY =====================================
+      id: 18096393443790520
+      identification: 
+        column-name: SUMMARY
+        type: Plain Text
+
+      heading: 
+        heading: Summary
+        alignment: start
+
+      single-row-view: 
+        use-column-heading: true
+
+      layout: 
+        sequence: 110
+        column-alignment: start
+
+      accessibility: 
+        value-identifies-row: false
+
+      source: 
+        primary-key: false
+
+      column-filter: 
+        type: Default Based on Column Type
+
+      enable-users-to: 
+        hide: true
+        sort: true
+        filter: true
+        highlight: true
+        control-break: true
+        aggregate: true
+        compute: true
+        chart: true
+        group-by: true
+        pivot: true
+
+      security: 
+        escape-special-characters: true
+
+    - # ====== Column: BADGE_STATE =================================
+      id: 18096818978790525
+      identification: 
+        column-name: BADGE_STATE
+        type: Plain Text
+
+      heading: 
+        heading: Badge State
+        alignment: start
+
+      single-row-view: 
+        use-column-heading: true
+
+      layout: 
+        sequence: 120
+        column-alignment: start
+
+      accessibility: 
+        value-identifies-row: false
+
+      source: 
+        primary-key: false
+
+      column-filter: 
+        type: Default Based on Column Type
+
+      enable-users-to: 
+        hide: true
+        sort: true
+        filter: true
+        highlight: true
+        control-break: true
+        aggregate: true
+        compute: true
+        chart: true
+        group-by: true
+        pivot: true
+
+      security: 
+        escape-special-characters: true
+
+    printing: 
+      output: 
+        layout: Default Report Layout
+        view-file-as: Attachment
+
+      page: 
+        size: Letter
+        orientation: Landscape
+        units: Inches
+        width: 11
+        height: 8.5
+        border-width: 0.5
+        border-color: '#666666'
+
+      page-header: 
+        font: Helvetica
+        font-weight: Normal
+        font-size: 12
+        font-color: '#000000'
+        alignment: center
+        page-header-text: Recent Error Events
+
+      column-headings: 
+        font: Helvetica
+        font-weight: Bold
+        font-size: 10
+        font-color: '#000000'
+        background-color: '#EEEEEE'
+
+      columns: 
+        font: Helvetica
+        font-weight: Normal
+        font-size: 10
+        font-color: '#000000'
+        background-color: '#FFFFFF'
+
+      page-footer: 
+        font: Helvetica
+        font-weight: Normal
+        font-size: 12
+        font-color: '#000000'
+        alignment: center
+
+page-items: 
+- # ====== Page Item: P4_PERIOD ================================
+  id: 17674477209037409
+  identification: 
+    name: P4_PERIOD
+    type: Select List
+
+  label: 
+    label: Period
+    alignment: Left
+
+  settings: 
+    page-action-on-selection: None
+
+  multiple-values: 
+    type: No
+
+  layout: 
+    sequence: 10
+    region: Dashboard Filters # 17674357759037408
+    slot: BODY
+    alignment: Left
+    start-new-layout: false
+    start-new-row: true
+    column: Automatic
+    new-column: true
+    column-span: 2
+    label-column-span: Page Template Default
+
+  appearance: 
+    template: Optional - Floating
+    template-options: 
+    - '#DEFAULT#'
+    height: 1
+
+  validation: 
+    value-required: true
+
+  list-of-values: 
+    type: Static Values
+    static-values: 'STATIC2:Last hour;H1,Last 6 hours;H6,Last 24 hours;H24,Last 7 days;D7,Last 30 days;D30,Custom range;RANGE'
+    display-extra-values: false
+    display-null-value: false
+
+  advanced: 
+    warn-on-unsaved-changes: Page Default
+
+  source: 
+    type: Null
+    used: Only when current value in session state is null
+
+  default: 
+    type: Static
+    static-value: H24
+
+  session-state: 
+    storage: Per Session (Persistent)
+
+  quick-picks: 
+    show-quick-picks: false
+
+  security: 
+    session-state-protection: Unrestricted
+    store-value-encrypted-in-session-state: true
+    restricted-characters: All characters can be saved.
+
+- # ====== Page Item: P4_INTEGRATION_KEY =======================
+  id: 17674558230037410
+  identification: 
+    name: P4_INTEGRATION_KEY
+    type: Select List
+
+  label: 
+    label: Integration
+    alignment: Left
+
+  settings: 
+    page-action-on-selection: None
+
+  multiple-values: 
+    type: No
+
+  layout: 
+    sequence: 20
+    region: Dashboard Filters # 17674357759037408
+    slot: BODY
+    alignment: Left
+    start-new-layout: false
+    start-new-row: false
+    column: Automatic
+    new-column: true
+    column-span: 4
+    label-column-span: Page Template Default
+
+  appearance: 
+    template: Optional - Floating
+    template-options: 
+    - '#DEFAULT#'
+    height: 1
+
+  validation: 
+    value-required: false
+
+  list-of-values: 
+    type: SQL Query
+    sql-query: |
+      select
+          integration_key d,
+          integration_key r
+      from oio_owner.oio_integration_cfg
+      where active_flag = 'Y'
+      AND ( integration_key IS NOT NULL AND integration_key IS NOT NULL)
+      order by integration_key
+    display-extra-values: false
+    display-null-value: true
+    null-display-value: All integrations
+
+  advanced: 
+    warn-on-unsaved-changes: Page Default
+
+  source: 
+    type: Null
+    used: Only when current value in session state is null
+
+  session-state: 
+    storage: Per Session (Persistent)
+
+  quick-picks: 
+    show-quick-picks: false
+
+  security: 
+    session-state-protection: Unrestricted
+    store-value-encrypted-in-session-state: true
+    restricted-characters: All characters can be saved.
+
+- # ====== Page Item: P4_DATE_FROM =============================
+  id: 17674658206037411
+  identification: 
+    name: P4_DATE_FROM
+    type: Date Picker
+
+  label: 
+    label: From
+    alignment: Left
+
+  settings: 
+    show-time: false
+    display-as: Popup
+    minimum-date: None
+    maximum-date: None
+    multiple-months: No
+    use-defaults: true
+
+  layout: 
+    sequence: 30
+    region: Dashboard Filters # 17674357759037408
+    slot: BODY
+    alignment: Left
+    start-new-layout: false
+    start-new-row: true
+    column: Automatic
+    new-column: true
+    column-span: 2
+    label-column-span: Page Template Default
+
+  appearance: 
+    template: Optional - Floating
+    template-options: 
+    - '#DEFAULT#'
+    format-mask: DD/MM/YYYY
+    width: 15
+
+  validation: 
+    value-required: false
+
+  advanced: 
+    warn-on-unsaved-changes: Page Default
+
+  source: 
+    type: Null
+    used: Only when current value in session state is null
+
+  session-state: 
+    storage: Per Session (Persistent)
+
+  quick-picks: 
+    show-quick-picks: false
+
+  security: 
+    session-state-protection: Unrestricted
+    store-value-encrypted-in-session-state: true
+    restricted-characters: All characters can be saved.
+
+- # ====== Page Item: P4_DATE_TO ===============================
+  id: 17674752345037412
+  identification: 
+    name: P4_DATE_TO
+    type: Date Picker
+
+  label: 
+    label: To
+    alignment: Left
+
+  settings: 
+    show-time: false
+    display-as: Popup
+    minimum-date: None
+    maximum-date: None
+    multiple-months: No
+    use-defaults: true
+
+  layout: 
+    sequence: 40
+    region: Dashboard Filters # 17674357759037408
+    slot: BODY
+    alignment: Left
+    start-new-layout: false
+    start-new-row: false
+    column: Automatic
+    new-column: true
+    column-span: 2
+    label-column-span: Page Template Default
+
+  appearance: 
+    template: Optional - Floating
+    template-options: 
+    - '#DEFAULT#'
+    format-mask: DD/MM/YYYY
+    width: 15
+
+  validation: 
+    value-required: false
+
+  advanced: 
+    warn-on-unsaved-changes: Page Default
+
+  source: 
+    type: Null
+    used: Only when current value in session state is null
+
+  session-state: 
+    storage: Per Session (Persistent)
+
+  quick-picks: 
+    show-quick-picks: false
+
+  security: 
+    session-state-protection: Unrestricted
+    store-value-encrypted-in-session-state: true
+    restricted-characters: All characters can be saved.
+
+buttons: 
+- # ====== Button: P4_BUTTON_APPLY =============================
+  id: 17676156162037426
+  identification: 
+    button-name: P4_BUTTON_APPLY
+    label: Apply Filter
+
+  layout: 
+    sequence: 50
+    region: Dashboard Filters # 17674357759037408
+    slot: BODY
+    start-new-layout: false
+    start-new-row: false
+    column: Automatic
+    new-column: true
+    column-span: 2
+    alignment: Left center
+
+  appearance: 
+    button-template: Text
+    hot: false
+    template-options: 
+    - '#DEFAULT#'
+
+  behavior: 
+    action: Defined by Dynamic Action
+    execute-validations: true
+
+dynamic-actions: 
+- # ====== Dynamic Action: Toggle Custom Range =================
+  id: 17675275040037417
+  identification: 
+    name: Toggle Custom Range
+
+  execution: 
+    sequence: 20
+    event-scope: Static
+    type: Immediate
+
+  when: 
+    event: Change
+    selection-type: Item(s)
+    item(s): 
+    - P4_PERIOD
+
+  client-side-condition: 
+    type: Item = Value
+    item: P4_PERIOD
+    value: RANGE
+
+  actions: 
+  - # ====== Action: Show Range Fields ===========================
+    id: 17675388234037418
+    identification: 
+      name: Show Range Fields
+      action: Show
+
+    affected-elements: 
+      selection-type: Item(s)
+      item(s): 
+      - P4_DATE_FROM
+      - P4_DATE_TO
+
+    execution: 
+      sequence: 10
+      event: Toggle Custom Range # 17675275040037417
+      fire-when-event-result-is: True
+      fire-on-initialization: true
+
+  - # ====== Action: Hide Range Fields ===========================
+    id: 17675733902037422
+    identification: 
+      name: Hide Range Fields
+      action: Hide
+
+    affected-elements: 
+      selection-type: Item(s)
+      item(s): 
+      - P4_DATE_FROM
+      - P4_DATE_TO
+
+    execution: 
+      sequence: 10
+      event: Toggle Custom Range # 17675275040037417
+      fire-when-event-result-is: False
+      fire-on-initialization: true
+
+  - # ====== Action: Show Button =================================
+    id: 17676252790037427
+    identification: 
+      name: Show Button
+      action: Show
+
+    affected-elements: 
+      selection-type: Button
+      button: P4_BUTTON_APPLY # 17676156162037426
+
+    execution: 
+      sequence: 20
+      event: Toggle Custom Range # 17675275040037417
+      fire-when-event-result-is: True
+      fire-on-initialization: true
+
+  - # ====== Action: Hide Button =================================
+    id: 17676393263037428
+    identification: 
+      name: Hide Button
+      action: Hide
+
+    affected-elements: 
+      selection-type: Button
+      button: P4_BUTTON_APPLY # 17676156162037426
+
+    execution: 
+      sequence: 20
+      event: Toggle Custom Range # 17675275040037417
+      fire-when-event-result-is: False
+      fire-on-initialization: true
+
+  - # ====== Action: Clear Range Date ============================
+    id: 17677239319037437
+    identification: 
+      name: Clear Range Date
+      action: Execute JavaScript Code
+
+    settings: 
+      code: |
+        apex.item("P4_DATE_FROM").setValue("");
+        apex.item("P4_DATE_TO").setValue("");
+
+    execution: 
+      sequence: 30
+      event: Toggle Custom Range # 17675275040037417
+      fire-when-event-result-is: False
+      fire-on-initialization: false
+
+- # ====== Dynamic Action: Refresh Dashboards ==================
+  id: 17675831129037423
+  identification: 
+    name: Refresh Dashboards
+
+  execution: 
+    sequence: 50
+    event-scope: Static
+    type: Immediate
+
+  when: 
+    event: Change
+    selection-type: Item(s)
+    item(s): 
+    - P4_PERIOD
+    - P4_DATE_FROM
+    - P4_DATE_TO
+    - P4_INTEGRATION_KEY
+
+  client-side-condition: 
+    type: Item != Value
+    item: P4_PERIOD
+    value: RANGE
+
+  actions: 
+  - # ====== Action: Refresh Tech KPIs ===========================
+    id: 17675993729037424
+    identification: 
+      name: Refresh Tech KPIs
+      action: Refresh
+
+    settings: 
+      maintain-pagination: false
+
+    affected-elements: 
+      selection-type: Region
+      region: Technical KPIs # 17674817963037413
+
+    execution: 
+      sequence: 10
+      event: Refresh Dashboards # 17675831129037423
+      fire-when-event-result-is: True
+      fire-on-initialization: false
+
+  - # ====== Action: Refresh Error Trend =========================
+    id: 17677123078037436
+    identification: 
+      name: Refresh Error Trend
+      action: Refresh
+
+    settings: 
+      maintain-pagination: false
+
+    affected-elements: 
+      selection-type: Region
+      region: Error Trend # 17676621730037431
+
+    execution: 
+      sequence: 20
+      event: Refresh Dashboards # 17675831129037423
+      fire-when-event-result-is: True
+      fire-on-initialization: false
+
+  - # ====== Action: Refresh Top Errors ==========================
+    id: 17677824764037443
+    identification: 
+      name: Refresh Top Errors
+      action: Refresh
+
+    settings: 
+      maintain-pagination: false
+
+    affected-elements: 
+      selection-type: Region
+      region: Top Error Codes # 17677394281037438
+
+    execution: 
+      sequence: 30
+      event: Refresh Dashboards # 17675831129037423
+      fire-when-event-result-is: True
+      fire-on-initialization: false
+
+  - # ====== Action: Refresh Stuck Transactions ==================
+    id: 18096592674790522
+    identification: 
+      name: Refresh Stuck Transactions
+      action: Refresh
+
+    settings: 
+      maintain-pagination: false
+
+    affected-elements: 
+      selection-type: Region
+      region: Potentially Stuck Transactions # 17678226511037447
+
+    execution: 
+      sequence: 40
+      event: Refresh Dashboards # 17675831129037423
+      fire-when-event-result-is: True
+      fire-on-initialization: false
+
+  - # ====== Action: Refresh Error Events ========================
+    id: 18096644961790523
+    identification: 
+      name: Refresh Error Events
+      action: Refresh
+
+    settings: 
+      maintain-pagination: false
+
+    affected-elements: 
+      selection-type: Region
+      region: Recent Error Events # 18095153661790508
+
+    execution: 
+      sequence: 50
+      event: Refresh Dashboards # 17675831129037423
+      fire-when-event-result-is: True
+      fire-on-initialization: false
+
+- # ====== Dynamic Action: ClickApplyFilter ====================
+  id: 17676421156037429
+  identification: 
+    name: ClickApplyFilter
+
+  execution: 
+    sequence: 60
+    event-scope: Static
+    type: Immediate
+
+  when: 
+    event: Click
+    selection-type: Button
+    button: P4_BUTTON_APPLY # 17676156162037426
+
+  client-side-condition: 
+    type: Item = Value
+    item: P4_PERIOD
+    value: RANGE
+
+  actions: 
+  - # ====== Action: Refresh =====================================
+    id: 17676587747037430
+    identification: 
+      action: Refresh
+
+    settings: 
+      maintain-pagination: false
+
+    affected-elements: 
+      selection-type: Region
+      region: Technical KPIs # 17674817963037413
+
+    execution: 
+      sequence: 10
+      event: ClickApplyFilter # 17676421156037429
+      fire-when-event-result-is: True
+      fire-on-initialization: false
+
+- # ====== Dynamic Action: Validate Custom Range ===============
+  id: 17888633950271099
+  identification: 
+    name: Validate Custom Range
+
+  execution: 
+    sequence: 40
+    event-scope: Static
+    type: Immediate
+
+  when: 
+    event: Change
+    selection-type: Item(s)
+    item(s): 
+    - P4_DATE_FROM
+    - P4_DATE_TO
+    - P4_PERIOD
+
+  client-side-condition: 
+    type: Item = Value
+    item: P4_PERIOD
+    value: RANGE
+
+  actions: 
+  - # ====== Action: Validate and Refresh Range ==================
+    id: 17889092991271100
+    identification: 
+      name: Validate and Refresh Range
+      action: Execute JavaScript Code
+
+    settings: 
+      code: |
+        apex.message.clearErrors();
+        
+        const fromValue = apex.item("P4_DATE_FROM").getValue();
+        const toValue   = apex.item("P4_DATE_TO").getValue();
+        
+        if (!fromValue || !toValue) {
+            return;
+        }
+        
+        const fromDate = apex.date.parse(fromValue, "DD/MM/YYYY");
+        const toDate   = apex.date.parse(toValue, "DD/MM/YYYY");
+        
+        if (toDate < fromDate) {
+            apex.message.showErrors([{
+                type: "error",
+                location: ["inline"],
+                pageItem: "P4_DATE_TO",
+                message: "To date must be greater than or equal to From date.",
+                unsafe: false
+            }]);
+            return;
+        }
+        
+        const millisecondsPerDay = 86400000;
+        
+        const days =
+            Math.floor((toDate - fromDate) / millisecondsPerDay) + 1;
+        
+        if (days > 90) {
+            apex.message.showErrors([{
+                type: "error",
+                location: ["inline"],
+                pageItem: "P4_DATE_TO",
+                message: "The custom date range cannot exceed 90 days.",
+                unsafe: false
+            }]);
+            return;
+        }
+        
+        apex.region("Dashboard_KPIs").refresh();
+        apex.region("Dashboard_Donuts").refresh();
+        apex.region("Transaction_Volume").refresh();
+        apex.region("Top_Integrations").refresh();
+
+    execution: 
+      sequence: 10
+      event: Validate Custom Range # 17888633950271099
+      fire-when-event-result-is: True
+      fire-on-initialization: false
+

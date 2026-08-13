@@ -1,7 +1,7 @@
-prompt --application/shared_components/globalization/language
+prompt --application/deployment/buildoptions
 begin
 --   Manifest
---     LANGUAGE MAP: 101
+--     INSTALL BUILD OPTIONS: 101
 --   Manifest End
 wwv_flow_imp.component_begin (
  p_version_yyyy_mm_dd=>'2024.11.30'
@@ -11,12 +11,7 @@ wwv_flow_imp.component_begin (
 ,p_default_id_offset=>0
 ,p_default_owner=>'OIO_APEX'
 );
-wwv_flow_imp_shared.create_language_map(
- p_id=>wwv_flow_imp.id(17684489431369236)
-,p_translation_flow_id=>10002
-,p_translation_flow_language_cd=>'pt-br'
-,p_direction_right_to_left=>'N'
-);
+null;
 wwv_flow_imp.component_end;
 end;
 /
