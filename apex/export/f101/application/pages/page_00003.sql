@@ -17,6 +17,7 @@ wwv_flow_imp_page.create_page(
 ,p_alias=>'PAYLOAD-VIEWER'
 ,p_page_mode=>'MODAL'
 ,p_step_title=>'Payload Viewer'
+,p_warn_on_unsaved_changes=>'N'
 ,p_autocomplete_on_off=>'OFF'
 ,p_page_template_options=>'#DEFAULT#'
 ,p_dialog_resizable=>'Y'

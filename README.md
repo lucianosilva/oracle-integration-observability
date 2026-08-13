@@ -37,7 +37,7 @@ flowchart LR
     H --> J
 
     J --> K[SQL and support queries]
-    J -. planned .-> L[Oracle APEX]
+    J --> L[Oracle APEX]
     J -. planned .-> M[ORDS and Grafana]
 ```
 
@@ -73,50 +73,40 @@ For the complete design, see [Architecture](docs/architecture.md).
 
 ```text
 oracle-integration-observability/
-├── LICENSE
-├── README.md
-├── contracts
-│   └── examples
-│       ├── 01_create_success.json
-│       ├── 02_create_business_error.json
-│       ├── 03_create_technical_error.json
-│       ├── 04_create_po_sync_success.json
-│       ├── 05_update_status_resolved.json
-│       ├── 06_update_status_in_progress.json
-│       └── README.md
-├── database
-│   └── install
-│       ├── 00_oio_owner_creation.sql
-│       ├── 00_oio_runtime_creation.sql
-│       ├── 01_oio_integration_cfg.sql
-│       ├── 02_oio_trace.sql
-│       ├── 03_oio_trace_event.sql
-│       ├── 04_oio_trace_payload.sql
-│       ├── 05_oio_views.sql
-│       ├── README.md
-│       ├── oio_trace_api_pkb.sql
-│       ├── oio_trace_api_pks.sql
-│       ├── sample_data_oio.sql
-│       └── validation_queries_oio.sql
-├── docs
-│   ├── architecture.md
-│   └── logging-contract.md
-└── oic
-    ├── README.md
-    ├── connection-setup.md
-    ├── export
-    │   ├── OIO_LOG_EVENT_01.00.0000.iar
-    │   └── OIO_SAMPLE_BUSINESS_FLOW_01.00.0000.iar
-    ├── fault-handler-pattern.md
-    ├── implementation-pattern.md
-    ├── mapping-reference.md
-    └── screenshot
-        ├── OIO_LOG_EVENT_global_handling.png
-        ├── OIO_LOG_EVENT_main.png
-        ├── OIO_SAMPLE_BUSINESS_FLOW.png
-        └── OIO_TRACE_DB_connection.png
-
-
+oracle-integration-observability/
+│   .gitignore
+│   LICENSE
+│   README.md
+│
+├───apex
+│   ├───export
+│   │   └───f101
+│   │       └───application
+│   │           ├───pages
+│   │           ├───shared_components
+│   │           │   ├───files
+│   │           │   ├───globalization
+│   │           │   ├───logic
+│   │           │   ├───navigation
+│   │           │   │   ├───breadcrumbs
+│   │           │   │   ├───lists
+│   │           │   │   └───tabs
+│   │           │   ├───security
+│   │           │   │   ├───authentications
+│   │           │   │   └───authorizations
+│   │           │   └───user_interface
+│   │           │       └───templates
+│   │           └───user_interfaces
+│   ├───install
+│   └───screenshots
+├───contracts
+│   └───examples
+├───database
+│   └───install
+├───docs
+└───oic
+    ├───export
+    └───screenshot
 ```
 
 ## Database model
@@ -288,7 +278,7 @@ Payload retention must therefore be intentional, minimal, and controlled. This r
 ## Known limitations
 
 - The database scripts and package still require clean-environment runtime validation.
-- No Oracle APEX application, ORDS endpoint, Grafana dashboard, or alert rule is included yet.
+- No ORDS endpoint, Grafana dashboard, or alert rule is included yet.
 - Transaction statuses are business-defined and are not globally constrained by the database.
 - Attribute positions are generic and depend on metadata configured for each integration.
 - A status update may affect multiple traces when the supplied transaction identifiers are not unique.
