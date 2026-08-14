@@ -1,6 +1,6 @@
-﻿# Oracle Integration Observability (OIO) DDL
+# Oracle Integration Observability - Database installation
 
-This folder contains the initial OIO repository. `OIO_OWNER` creates and maintains all database objects. `OIO_RUNTIME` is optional and is intended exclusively for the Oracle Integration (OIC) connection.
+This folder contains the v1 database installation artifacts. `OIO_OWNER` creates and maintains the OIO database objects. `OIO_RUNTIME` is optional and is intended exclusively for the Oracle Integration connection.
 
 ## Installation order
 
@@ -18,7 +18,7 @@ This folder contains the initial OIO repository. `OIO_OWNER` creates and maintai
 
 ## Security model
 
-- `OIO_OWNER` owns `OIO_INTEGRATION_CFG`, `OIO_TRACE`, `OIO_TRACE_EVENT`, `OIO_TRACE_PAYLOAD`,`OIO_V_TRACE_PAYLOAD`, `OIO_V_TRACE_STATUS_HISTORY`, `OIO_V_TRACE_CURRENT`, and `OIO_TRACE_API`.
+- `OIO_OWNER` owns `OIO_INTEGRATION_CFG`, `OIO_TRACE`, `OIO_TRACE_EVENT`, `OIO_TRACE_PAYLOAD`, `OIO_V_TRACE_PAYLOAD`, `OIO_V_TRACE_STATUS_HISTORY`, `OIO_V_TRACE_CURRENT`, and `OIO_TRACE_API`.
 - `OIO_RUNTIME` is the OIC connection user. It receives only `CREATE SESSION` and `EXECUTE` on `OIO_OWNER.OIO_TRACE_API`.
 - No direct privileges on tables are granted to `OIO_RUNTIME`.
 
@@ -32,4 +32,4 @@ All named constraints and indexes use the `OIO_` prefix and remain below Oracle'
 
 ## Test scripts
 
-After creating the tables, use `sample_data_oio.sql` and `validation_queries_oio.sql` to load and validate sample data.
+After completing the installation, use `sample_data_oio.sql` and `validation_queries_oio.sql` to load and validate sample data.

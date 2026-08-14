@@ -66,7 +66,7 @@ flowchart LR
 
     I --> J[SQL / support queries]
     I --> K[Oracle APEX]
-    I -. planned .-> L[ORDS / Grafana]
+    I -. future extension .-> L[ORDS / Grafana]
 ```
 
 A successful asynchronous handoff confirms that Oracle Integration accepted the child request. It does not guarantee that the later database write completed successfully.
@@ -161,7 +161,7 @@ Payload retention must be selective. Implementations should sanitize sensitive c
 
 No automatic purge job or universal retention period is included. Retention remains an implementation-specific decision.
 
-## 10. Current limitations
+## 10. v1 boundaries and limitations
 
 - Clean-environment end-to-end validation has not yet been published.
 - Transaction statuses are business-defined and are not globally constrained by the database.

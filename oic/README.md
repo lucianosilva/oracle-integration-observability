@@ -1,13 +1,13 @@
 # Oracle Integration implementation
 
-This directory documents the Oracle Integration layer of Oracle Integration Observability (OIO).
+This directory contains the Oracle Integration layer of Oracle Integration Observability (OIO).
 
 ## Integrations
 
-| Integration | Role |
-|---|---|
-| `OIO_LOG_EVENT` | Reusable asynchronous child integration that persists OIO events using a fire-and-forget pattern. |
-| `OIO_SAMPLE_BUSINESS_FLOW` | Demonstration parent integration for success, status-update, and fault scenarios. |
+| Integration | Role | v1 artifact |
+|---|---|---|
+| `OIO_LOG_EVENT` | Reusable asynchronous child integration that persists OIO events using a fire-and-forget pattern. | [`OIO_LOG_EVENT_01.00.0000.iar`](export/OIO_LOG_EVENT_01.00.0000.iar) |
+| `OIO_SAMPLE_BUSINESS_FLOW` | Demonstration parent integration for success, status-update, and fault scenarios. | [`OIO_SAMPLE_BUSINESS_FLOW_01.00.0000.iar`](export/OIO_SAMPLE_BUSINESS_FLOW_01.00.0000.iar) |
 
 ```mermaid
 flowchart LR
@@ -18,64 +18,50 @@ flowchart LR
     D --> E
 ```
 
-The asynchronous handoff prevents database persistence from becoming part of the parent integration's response path. Acceptance of the child request confirms the handoff, not successful database persistence.
+The asynchronous handoff keeps database persistence outside the parent integration's response path. Acceptance of the child request confirms the handoff, not successful database persistence.
 
-The canonical JSON contract remains flat. Its field definitions, mandatory values, payload rules, and database normalization are documented in the [logging contract](../docs/logging-contract.md).
+The canonical JSON contract remains flat. Field definitions, required values, payload rules, and database behavior are defined in the [logging contract](../docs/logging-contract.md).
 
-## Current status
-
-`OIO_LOG_EVENT` is implemented and its sanitized Oracle Integration
-export is available under `oic/export`.
-
-End-to-end validation evidence remains part of a future repository increment.
+## v1 status
 
 | Component | Status |
 |---|---|
-| OIC connection design | Documented |
-| Asynchronous `OIO_LOG_EVENT` | Implemented |
-| OIC export | Available |
+| Oracle Database Adapter connection design | Documented |
+| `OIO_LOG_EVENT` | Implemented; sanitized IAR published |
+| `OIO_SAMPLE_BUSINESS_FLOW` | Implemented; sanitized IAR published |
 | Mapping reference | Documented |
 | Fault-handler pattern | Documented |
-| `OIO_SAMPLE_BUSINESS_FLOW` | Implemented |
-| Sanitized screenshots | Implemented |
-| End-to-end validation evidence | Planned |
+| Sanitized screenshots | Published under [`oic/screenshot/`](screenshot/) |
+| Clean-environment end-to-end validation evidence | Not yet published |
+
+The implementation is complete for the v1 reference scope. Environment-specific validation remains required before production adoption or a tagged tested release.
 
 ## Documentation
 
-Read the documents according to the task being performed:
-
-| Document | Use it for |
+| Document | Source of truth for |
 |---|---|
-| [Connection setup](connection-setup.md) | Creating and validating the Oracle Database Adapter connection. |
-| [Implementation pattern](implementation-pattern.md) | Building the asynchronous logger and the demonstration parent flow. |
-| [Mapping reference](mapping-reference.md) | Mapping the flat contract to the PL/SQL CLOB input. |
-| [Fault-handler pattern](fault-handler-pattern.md) | Dispatching an error event without replacing the original fault. |
-| [Logging contract](../docs/logging-contract.md) | Canonical field definitions and operation rules. |
-| [Architecture](../docs/architecture.md) | Overall OIO architecture and component responsibilities. |
-| [JSON examples](../contracts/examples/README.md) | Example create and status-update payloads. |
+| [Connection setup](connection-setup.md) | Oracle Database Adapter connection, runtime account, procedure discovery, and invoke metadata. |
+| [Implementation pattern](implementation-pattern.md) | OIC runtime flow, asynchronous semantics, parent/child behavior, and validation. |
+| [Mapping reference](mapping-reference.md) | Field mapping and JSON serialization. |
+| [Fault-handler pattern](fault-handler-pattern.md) | Preserving the original fault while dispatching observability events. |
+| [Logging contract](../docs/logging-contract.md) | Canonical field definitions, validation, matching, and database procedure behavior. |
+| [Architecture](../docs/architecture.md) | Overall OIO architecture, scope, and security boundaries. |
+| [JSON examples](../contracts/examples/README.md) | Anonymized create and status-update payloads. |
 
-## Recommended implementation order
+## Deployment and validation order
 
-1. Validate the database objects and package.
+1. Install and validate the database objects and `OIO_TRACE_API`.
 2. Configure the `OIO_TRACE_DB` connection.
-3. Build `OIO_LOG_EVENT` as an asynchronous one-way integration.
-4. Test both logger operations independently.
-5. Build `OIO_SAMPLE_BUSINESS_FLOW`.
-6. Validate the asynchronous handoff and the fault path.
-7. Execute end-to-end tests, including delayed persistence and child failure scenarios.
-8. Publish sanitized exports and screenshots.
-9. Record the tested Oracle Integration and database versions.
+3. Import and activate `OIO_LOG_EVENT`.
+4. Validate `CreateTrace` and `UpdateTransactionStatus` independently.
+5. Import and activate `OIO_SAMPLE_BUSINESS_FLOW`.
+6. Validate success, business-error, technical-error, handoff-failure, and child-runtime-failure scenarios.
+7. Compare the parent instance, child instance, and resulting OIO database records.
+8. Record the tested Oracle Integration and database versions and the validation date.
 
-## Artifact publication
+Any replacement export or screenshot must follow the repository [security considerations](../README.md#security-considerations) and remain free of credentials, private endpoints, and production-sensitive data.
 
-Before publishing an export or screenshot:
-
-- remove credentials, tokens, wallets, certificates, private endpoints, and environment-specific identifiers;
-- replace business data with anonymized examples;
-- follow the repository [security considerations](../README.md#security-considerations);
-- document the artifact status as illustrative, tested, or production-proven.
-
-## Artifact structure
+## Directory structure
 
 ```text
 oic/
