@@ -1,0 +1,151 @@
+---
+- # ====== Text Message: OIO_TECH_ERRORS_TITLE =================
+  id: 18285400076047216
+  identification: 
+    name: OIO_TECH_ERRORS_TITLE
+
+  message: 
+    text: Errors
+
+  attributes: 
+    language: English (en)
+    used-in-javascript: false
+
+  subscription: 
+    version-number: 47039816906323
+
+- # ====== Text Message: OIO_TECH_ERRORS_TITLE =================
+  id: 18285674932052925
+  identification: 
+    name: OIO_TECH_ERRORS_TITLE
+
+  message: 
+    text: Erros
+
+  attributes: 
+    language: Portuguese (Brazil) (pt-br)
+    used-in-javascript: false
+
+  subscription: 
+    version-number: 47039816971645
+
+- # ====== Text Message: OIO_TECH_ERRORS_DESC ==================
+  id: 18285849422174163
+  identification: 
+    name: OIO_TECH_ERRORS_DESC
+
+  message: 
+    text: Transactions with errors in the selected period
+
+  attributes: 
+    language: English (en)
+    used-in-javascript: false
+
+  subscription: 
+    version-number: 47039818529438
+
+- # ====== Text Message: OIO_TECH_ERRORS_DESC ==================
+  id: 18286071042174166
+  identification: 
+    name: OIO_TECH_ERRORS_DESC
+
+  message: 
+    text: Transações com erros no período selecionado
+
+  attributes: 
+    language: Portuguese (Brazil) (pt-br)
+    used-in-javascript: false
+
+  subscription: 
+    version-number: 47039818529578
+
+- # ====== Text Message: OIO_TECH_STUCK_DESC ===================
+  id: 18289784597188671
+  identification: 
+    name: OIO_TECH_STUCK_DESC
+
+  message: 
+    text: Potentially Stuck
+
+  attributes: 
+    language: English (en)
+    used-in-javascript: false
+
+  subscription: 
+    version-number: 47039818777940
+
+- # ====== Text Message: OIO_TECH_STUCK_DESC ===================
+  id: 18289995516188672
+  identification: 
+    name: OIO_TECH_STUCK_DESC
+
+  message: 
+    text: Potencialmente Travadas
+
+  attributes: 
+    language: Portuguese (Brazil) (pt-br)
+    used-in-javascript: false
+
+  subscription: 
+    version-number: 47039818777949
+
+- # ====== Text Message: OIO_TECH_ERROR_RATE_TITLE =============
+  id: 18290220525194313
+  identification: 
+    name: OIO_TECH_ERROR_RATE_TITLE
+
+  message: 
+    text: Error Rate
+
+  attributes: 
+    language: English (en)
+    used-in-javascript: false
+
+  subscription: 
+    version-number: 47039818849631
+
+- # ====== Text Message: OIO_TECH_ERROR_RATE_TITLE =============
+  id: 18290479383194314
+  identification: 
+    name: OIO_TECH_ERROR_RATE_TITLE
+
+  message: 
+    text: Taxa de Erros
+
+  attributes: 
+    language: Portuguese (Brazil) (pt-br)
+    used-in-javascript: false
+
+  subscription: 
+    version-number: 47039818849680
+
+- # ====== Text Message: OIO_TECH_ERROR_RATE_DESC ==============
+  id: 18290730975194316
+  identification: 
+    name: OIO_TECH_ERROR_RATE_DESC
+
+  message: 
+    text: Percentage of transactions with errors
+
+  attributes: 
+    language: English (en)
+    used-in-javascript: false
+
+  subscription: 
+    version-number: 47039818849721
+
+- # ====== Text Message: OIO_TECH_ERROR_RATE_DESC ==============
+  id: 18291010496194317
+  identification: 
+    name: OIO_TECH_ERROR_RATE_DESC
+
+  message: 
+    text: Percentual de transações com erros
+
+  attributes: 
+    language: Portuguese (Brazil) (pt-br)
+    used-in-javascript: false
+
+  subscription: 
+    version-number: 47039818849723
+

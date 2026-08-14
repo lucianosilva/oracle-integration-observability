@@ -1,0 +1,49 @@
+---
+- # ====== Breadcrumb: Breadcrumb ==============================
+  id: 15878391117683269
+  identification: 
+    name: Breadcrumb
+
+  entries: 
+  - # ====== Entry: Home =========================================
+    id: 15878595052683270
+    identification: 
+      name: Home
+      page-number: 1
+
+    execution: 
+      sequence: 10
+
+    link: 
+      target: 
+        url: 'f?p=&APP_ID.:1:&APP_SESSION.::&DEBUG.:::'
+        page: 1 # Monitoring Dashboard
+
+  - # ====== Entry: Transaction Search ===========================
+    id: 15900216611683429
+    identification: 
+      name: Transaction Search
+      page-number: 2
+
+    execution: 
+      sequence: 10
+
+    link: 
+      target: 
+        url: 'f?p=&APP_ID.:2:&SESSION.::&DEBUG.:::'
+        page: 2 # Transaction Search
+
+  - # ====== Entry: Technical Operations =========================
+    id: 17871506836991649
+    identification: 
+      name: Technical Operations
+      page-number: 4
+
+    execution: 
+      sequence: 10
+
+    link: 
+      target: 
+        url: 'f?p=&APP_ID.:4:&APP_SESSION.::&DEBUG.:::'
+        page: 4 # Technical Operations
+

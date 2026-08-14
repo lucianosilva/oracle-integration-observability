@@ -1,0 +1,214 @@
+---
+- # ====== List: Navigation Menu ===============================
+  id: 15878862362683273
+  identification: 
+    name: Navigation Menu
+
+  subscription: 
+    version-number: 47039727259092
+
+  source: 
+    type: Static Values
+
+  entries: 
+  - # ====== Entry: Monitoring Dashboard =========================
+    id: 15890456339683385
+    label: 
+      label: Monitoring Dashboard
+
+    icon: 
+      image/icon-css-classes: fa-dashboard
+
+    layout: 
+      sequence: 10
+
+    is-current: 
+      type: Target Page
+
+    link: 
+      target: 
+        url: 'f?p=&APP_ID.:1:&SESSION.::&DEBUG.::::'
+        page: 1 # Monitoring Dashboard
+
+    click-counting: 
+      count-clicks: false
+
+    user-defined-attributes: 
+      translatable: false
+
+  - # ====== Entry: Transaction Search ===========================
+    id: 15891925987683394
+    label: 
+      label: Transaction Search
+
+    icon: 
+      image/icon-css-classes: fa-search
+
+    layout: 
+      sequence: 20
+
+    is-current: 
+      type: Target Page
+
+    link: 
+      target: 
+        url: 'f?p=&APP_ID.:2:&SESSION.::&DEBUG.::::'
+        page: 2 # Transaction Search
+
+    click-counting: 
+      count-clicks: false
+
+    user-defined-attributes: 
+      translatable: false
+
+  - # ====== Entry: Technical Operations =========================
+    id: 17870668018991630
+    label: 
+      label: Technical Operations
+
+    icon: 
+      image/icon-css-classes: fa-wrench
+
+    layout: 
+      sequence: 30
+
+    is-current: 
+      type: Pages
+      pages: 
+      - 4
+
+    link: 
+      target: 
+        url: 'f?p=&APP_ID.:4:&APP_SESSION.::&DEBUG.:::'
+        page: 4 # Technical Operations
+
+    click-counting: 
+      count-clicks: false
+
+    user-defined-attributes: 
+      translatable: false
+
+- # ====== List: Navigation Bar ================================
+  id: 15879978021683304
+  identification: 
+    name: Navigation Bar
+
+  subscription: 
+    version-number: 47039289585395
+
+  source: 
+    type: Static Values
+
+  entries: 
+  - # ====== Entry: &APP_USER. ===================================
+    id: 15901739875683444
+    label: 
+      label: '&APP_USER.'
+
+    icon: 
+      image/icon-css-classes: fa-user
+
+    layout: 
+      sequence: 10
+
+    is-current: 
+      type: Target Page
+
+    link: 
+      target: '#'
+
+    click-counting: 
+      count-clicks: false
+
+    user-defined-attributes: 
+      translatable: false
+      2.: has-username
+
+  - # ====== Entry: --- ==========================================
+    id: 15902233034683446
+    label: 
+      label: '---'
+
+    layout: 
+      sequence: 20
+      parent-entry: '&APP_USER.' # 15901739875683444
+
+    is-current: 
+      type: Target Page
+
+    link: 
+      target: separator
+
+    click-counting: 
+      count-clicks: false
+
+    user-defined-attributes: 
+      translatable: false
+
+    server-side-condition: 
+      type: User is Authenticated (not public)
+
+  - # ====== Entry: Sign Out =====================================
+    id: 15902609046683447
+    label: 
+      label: Sign Out
+
+    icon: 
+      image/icon-css-classes: fa-sign-out
+
+    layout: 
+      sequence: 30
+      parent-entry: '&APP_USER.' # 15901739875683444
+
+    is-current: 
+      type: Target Page
+
+    link: 
+      target: '&LOGOUT_URL.'
+
+    click-counting: 
+      count-clicks: false
+
+    user-defined-attributes: 
+      translatable: false
+
+    server-side-condition: 
+      type: User is Authenticated (not public)
+
+- # ====== List: Page Navigation ===============================
+  id: 15900604050683440
+  identification: 
+    name: Page Navigation
+
+  subscription: 
+    version-number: 47039289585382
+
+  source: 
+    type: Static Values
+
+  entries: 
+  - # ====== Entry: Interactive Report ===========================
+    id: 15901089053683441
+    label: 
+      label: Interactive Report
+
+    icon: 
+      image/icon-css-classes: fa-table
+
+    layout: 
+      sequence: 20
+
+    is-current: 
+      type: Target Page
+
+    link: 
+      target: 
+        url: 'f?p=&APP_ID.:2:&APP_SESSION.::&DEBUG.:::'
+        page: 2 # Transaction Search
+
+    click-counting: 
+      count-clicks: false
+
+    user-defined-attributes: 
+      translatable: false
+
