@@ -27,8 +27,7 @@ The canonical JSON contract remains flat. Its field definitions, mandatory value
 `OIO_LOG_EVENT` is implemented and its sanitized Oracle Integration
 export is available under `oic/export`.
 
-End-to-end validation evidence and the sample parent integration remain
-part of the next repository increments.
+End-to-end validation evidence remains part of a future repository increment.
 
 | Component | Status |
 |---|---|
@@ -76,7 +75,7 @@ Before publishing an export or screenshot:
 - follow the repository [security considerations](../README.md#security-considerations);
 - document the artifact status as illustrative, tested, or production-proven.
 
-## Planned artifact structure
+## Artifact structure
 
 ```text
 oic/
@@ -85,6 +84,6 @@ oic/
 ├── implementation-pattern.md
 ├── mapping-reference.md
 ├── fault-handler-pattern.md
-├── exports/
-└── screenshots/
+├── export/
+└── screenshot/
 ```
