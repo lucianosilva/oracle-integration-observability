@@ -2,17 +2,17 @@
 
 ## 1. Purpose
 
-This document covers only the Oracle Database Adapter connection used by the asynchronous `OIO_LOG_EVENT` integration.
+This document covers the Oracle Database Adapter connection used by `OIO_LOG_EVENT`.
 
-The database ownership and runtime model is defined in the [architecture document](../docs/architecture.md). The expected model is:
+The ownership and security boundaries are defined in the [architecture document](../docs/architecture.md):
 
-- `OIO_OWNER` owns the OIO objects;
-- `OIO_RUNTIME` is the optional OIC runtime account;
+- `OIO_OWNER` owns the OIO database objects;
+- `OIO_RUNTIME` is the optional Oracle Integration runtime account;
 - the runtime account receives package execution privileges without direct table access.
 
-## 2. Recommended connection
+## 2. Reference connection
 
-| Property | Recommended value |
+| Property | Reference value |
 |---|---|
 | Connection name | `OIO_TRACE_DB` |
 | Identifier | `OIO_TRACE_DB` |
@@ -27,17 +27,17 @@ Do not commit database credentials, wallets, certificates, or private endpoint d
 
 ## 3. Database prerequisites
 
-Before configuring OIC:
+Before configuring Oracle Integration:
 
 1. Install the OIO database objects as `OIO_OWNER`.
 2. Confirm that `OIO_OWNER.OIO_TRACE_API` is `VALID`.
 3. Create `OIO_RUNTIME` when using the separate runtime model.
 4. Grant `CREATE SESSION` to `OIO_RUNTIME`.
 5. Grant `EXECUTE` on `OIO_OWNER.OIO_TRACE_API` directly to `OIO_RUNTIME`.
-6. Confirm that the runtime account has no direct table privileges.
-7. Test package execution from SQL before configuring OIC.
+6. Confirm that `OIO_RUNTIME` has no direct privileges on OIO tables.
+7. Test package execution from SQL before configuring the adapter.
 
-The OIC implementation uses:
+The OIC implementation invokes:
 
 ```text
 OIO_TRACE_API.PR_CREATE_TRACE_LOG
@@ -46,11 +46,9 @@ OIO_TRACE_API.PR_UPDATE_TRANSACTION_STATUS
 
 ## 4. Connectivity
 
-The database and Oracle Integration instance must have an approved network path.
+Oracle Integration and the database must have an approved network path. Validate routing, DNS, TLS, firewall rules, certificates, and service accessibility for the target environment.
 
-The selected architecture may use a public endpoint with approved controls, private connectivity, or an agent-based connection. Validate routing, DNS, TLS, firewall rules, certificates, and service accessibility for the target environment.
-
-This repository does not prescribe a universal network design.
+This repository does not prescribe a universal public, private, or agent-based network design.
 
 ## 5. Create the connection
 
@@ -59,9 +57,8 @@ In Oracle Integration:
 1. Create an Oracle Database Adapter connection.
 2. Set the name and identifier to `OIO_TRACE_DB`.
 3. Configure the environment-specific endpoint and security policy.
-4. Authenticate with `OIO_RUNTIME`.
+4. Authenticate with `OIO_RUNTIME` when using the reference runtime model.
 5. Test the connection.
-6. Keep all secrets outside repository artifacts.
 
 ## 6. Configure the invokes
 
@@ -93,43 +90,30 @@ Create two Database Adapter invokes inside `OIO_LOG_EVENT`.
 | Output | `O_STATUS` VARCHAR2 |
 | Output | `O_MESSAGE` VARCHAR2 |
 
-`O_STATUS` and `O_MESSAGE` are evaluated inside `OIO_LOG_EVENT`.
-When `O_STATUS` differs from `SUCCESS`, the integration executes
-`Throw New Fault` using `O_MESSAGE` as diagnostic context.
-
-These outputs are internal to the asynchronous child integration and are not returned to the parent business flow.
-Field-level serialization is documented in the [mapping reference](mapping-reference.md).
+The adapter exposes the procedure OUT parameters to the child integration. Field serialization is defined in the [mapping reference](mapping-reference.md); post-invoke behavior is defined in the [implementation pattern](implementation-pattern.md).
 
 ## 7. Metadata discovery
 
-The least-privilege design assumes that the adapter can discover and invoke `OIO_OWNER.OIO_TRACE_API` while connected as `OIO_RUNTIME`.
+If `OIO_TRACE_API` is not visible while connected as `OIO_RUNTIME`:
 
-If the package is not visible:
+1. confirm the direct `EXECUTE` grant;
+2. confirm the owner, package, and procedure names;
+3. re-test the connection and review adapter/database logs;
+4. evaluate an approved synonym or wrapper only when required by the target environment.
 
-1. Confirm that `EXECUTE` was granted directly to `OIO_RUNTIME`.
-2. Confirm the owner, package, and procedure names.
-3. Re-test the connection.
-4. Review adapter and database logs.
-5. Evaluate an approved synonym or wrapper only when required.
-6. Do not grant broad table privileges merely to solve metadata discovery.
-
-Document any deviation from the repository security model.
+Do not grant broad table privileges merely to solve metadata discovery. Document any deviation from the reference security model.
 
 ## 8. Validation checklist
 
-Because `OIO_LOG_EVENT` is asynchronous, a successful handoff does not prove that the database operation completed. Validate the child instance and database state separately.
-
-- [ ] `OIO_TRACE_API` is valid.
-- [ ] `OIO_RUNTIME` can create a session.
-- [ ] `OIO_RUNTIME` can execute the package.
+- [ ] `OIO_TRACE_API` is `VALID`.
+- [ ] `OIO_RUNTIME` can create a session and execute the package.
 - [ ] `OIO_RUNTIME` cannot directly access OIO tables.
 - [ ] The `OIO_TRACE_DB` connection test succeeds.
 - [ ] Both procedures are visible to the adapter.
-- [ ] The asynchronous child instance completes successfully.
-- [ ] A create operation eventually generates the expected database rows.
-- [ ] A status update eventually appends the expected event.
-- [ ] A database failure appears in the child integration instance without changing the completed parent outcome.
-- [ ] No secrets appear in screenshots or exports.
+- [ ] `P_PAYLOAD`, `O_STATUS`, and `O_MESSAGE` are exposed with the expected directions and types.
+- [ ] No secrets or private endpoint details appear in exports or screenshots.
+
+End-to-end asynchronous behavior is validated separately in the [implementation pattern](implementation-pattern.md).
 
 ## 9. Related documentation
 
@@ -141,4 +125,4 @@ Because `OIO_LOG_EVENT` is asynchronous, a successful handoff does not prove tha
 ## 10. Official Oracle references
 
 - [Oracle Database Adapter stored-procedure invocation](https://docs.oracle.com/en/cloud/paas/application-integration/database-adapter/invoke-stored-procedure-page.html)
-- [Add the Oracle Database Adapter connection to an integration](https://docs.oracle.com/en/cloud/paas/integration-cloud/database-adapter/add-oracle-database-adapter-connection-integration.html)
+- [Add the Oracle Database Adapter connection to an integration](https://docs.oracle.com/en/cloud/paas/application-integration/database-adapter/add-oracle-database-adapter-connection-integration.html)

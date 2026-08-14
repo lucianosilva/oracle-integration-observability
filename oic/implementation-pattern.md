@@ -2,120 +2,102 @@
 
 ## 1. Purpose
 
-This document is the source of truth for constructing and validating:
+This document is the source of truth for the Oracle Integration runtime behavior of:
 
 ```text
 OIO_LOG_EVENT
 OIO_SAMPLE_BUSINESS_FLOW
 ```
 
-`OIO_LOG_EVENT` is intentionally asynchronous and one-way. Its purpose is to decouple observability persistence from the business integration's response path.
+`OIO_LOG_EVENT` is asynchronous and one-way so observability persistence remains outside the parent business integration's response path.
 
-The field contract is defined in the [logging contract](../docs/logging-contract.md), and field-level mapping is defined in the [mapping reference](mapping-reference.md).
+Field definitions and validation rules are maintained in the [logging contract](../docs/logging-contract.md). OIC field mapping and serialization are maintained in the [mapping reference](mapping-reference.md).
 
 ## 2. Integration inventory
 
-| Integration | Pattern | Processing | Responsibility |
-|---|---|---|---|
-| `OIO_LOG_EVENT` | Application integration | Asynchronous, fire-and-forget | Persist OIO events independently of the parent execution path. |
-| `OIO_SAMPLE_BUSINESS_FLOW` | Application integration | Defined by the sample use case | Demonstrate the asynchronous logging handoff. |
+| Integration | Pattern | Responsibility |
+|---|---|---|
+| `OIO_LOG_EVENT` | Application integration; asynchronous one-way | Persist OIO events independently of the parent execution path. |
+| `OIO_SAMPLE_BUSINESS_FLOW` | Application integration | Demonstrate success, status-update, and fault scenarios. |
 
-Recommended initial integration version:
+The published v1 exports use version `01.00.0000`.
 
-```text
-01.00.0000
-```
+## 3. Asynchronous semantics
 
-## 3. Asynchronous design semantics
+The parent continues after Oracle Integration accepts the asynchronous child request. Therefore:
 
-The parent dispatches the logging request and continues after Oracle Integration accepts the asynchronous handoff.
+- the parent does not wait for Database Adapter or PL/SQL execution;
+- no OIO application response payload is returned to the parent;
+- request acceptance is not proof that persistence completed;
+- mapping, database, or package failures after acceptance belong to the child instance;
+- OIO data is eventually consistent with the parent execution.
 
-This means:
+The handoff itself can still fail before acceptance. The fault-handling implications are defined in the [fault-handler pattern](fault-handler-pattern.md).
 
-- the parent does not wait for the Database Adapter or PL/SQL package to finish;
-- the parent does not receive an OIO business response payload;
-- request acceptance is not proof that the event was persisted;
-- mapping, database, or package failures after acceptance belong to the child integration instance;
-- OIO data is eventually consistent with the parent execution;
-- operational monitoring must include failed or recoverable `OIO_LOG_EVENT` instances.
+## 4. `OIO_LOG_EVENT` design
 
-The handoff still has a small invocation cost and can fail before acceptance. The pattern reduces coupling and runtime impact; it does not make the dispatch itself infallible or free.
+### 4.1 Trigger and operations
 
-## 4. Build `OIO_LOG_EVENT`
-
-### 4.1 Trigger
-
-Use a REST Adapter trigger configured as asynchronous one-way. Do not configure the endpoint to return an application response.
-
-If using multiple resources and a Pick action, configure each operation as asynchronous one-way.
+Use a REST Adapter trigger configured as asynchronous one-way. When using multiple resources and a Pick action, keep each OIO operation asynchronous one-way.
 
 | Operation | Method | Resource | Procedure |
 |---|---|---|---|
 | `CreateTrace` | `POST` | `/events` | `PR_CREATE_TRACE_LOG` |
 | `UpdateTransactionStatus` | `PATCH` | `/events/status` | `PR_UPDATE_TRANSACTION_STATUS` |
 
-The operation is selected by the HTTP method and resource. No routing property is added to the flat OIO contract.
+The HTTP operation selects the branch; no routing property is added to the flat OIO contract.
 
-### 4.2 Create trace branch
+### 4.2 Create trace
 
 ```mermaid
 flowchart LR
-    A[Asynchronous CreateTrace request] --> B[Basic validation]
+    A[CreateTrace request] --> B[Validate request]
     B --> C[Serialize flat JSON]
-    C --> D[OIO_TRACE_DB.CreateOIOTrace]
-    D --> E[Child instance completes]
+    C --> D[CreateOIOTrace]
+    D --> E[Evaluate O_STATUS]
+    E --> F[Complete or fault child instance]
 ```
 
-Implementation steps:
+Runtime sequence:
 
 1. Receive the canonical payload.
 2. Apply basic request validation.
-3. Serialize the request into the JSON CLOB expected by the package.
+3. Serialize the flat request into the JSON CLOB expected by the package.
 4. Invoke `OIO_TRACE_API.PR_CREATE_TRACE_LOG`.
-5. Evaluate `O_STATUS`.
-6. When `O_STATUS = SUCCESS`, complete the child instance.
-7. Otherwise, execute `Throw New Fault` using `O_MESSAGE` as diagnostic context.
+5. Complete normally when `O_STATUS = SUCCESS`.
+6. Otherwise execute `Throw New Fault`, using `O_MESSAGE` as diagnostic context.
 
-No application-level success response is returned to the parent. The asynchronous invocation confirms receipt or acceptance, not persistence completion.
-
-### 4.3 Status update branch
+### 4.3 Update transaction status
 
 ```mermaid
 flowchart LR
-    A[Asynchronous status request] --> B[Basic validation]
+    A[Status request] --> B[Validate identifiers and status]
     B --> C[Serialize flat JSON]
-    C --> D[OIO_TRACE_DB.UpdateOIOStatus]
-    D --> E[Child instance completes]
+    C --> D[UpdateOIOStatus]
+    D --> E[Evaluate O_STATUS]
+    E --> F[Complete or fault child instance]
 ```
 
-Implementation steps:
+Runtime sequence:
 
 1. Receive the canonical payload.
-2. Validate `integrationKey` and `transactionStatus`.
-3. Confirm that at least one transaction identifier is present.
-4. Serialize the request.
-5. Invoke `OIO_TRACE_API.PR_UPDATE_TRANSACTION_STATUS`.
-6. Evaluate `O_STATUS`.
-7. When `O_STATUS = SUCCESS`, complete the child instance.
-8. Otherwise, execute `Throw New Fault` using `O_MESSAGE` as diagnostic context.
+2. Validate `integrationKey`, `transactionStatus`, and the presence of at least one transaction identifier.
+3. Serialize the request.
+4. Invoke `OIO_TRACE_API.PR_UPDATE_TRANSACTION_STATUS`.
+5. Complete normally when `O_STATUS = SUCCESS`.
+6. Otherwise execute `Throw New Fault`, using `O_MESSAGE` as diagnostic context.
 
-The caller must provide identifiers selective enough for the intended trace. The current database behavior may update multiple traces when the supplied combination is not unique.
+The supplied transaction identifiers must be selective enough for the intended trace. The current database implementation updates every trace that matches the supplied non-null identifiers.
 
-### 4.4 Child failure behavior
+### 4.4 Logger failure behavior
 
-A mapping, Database Adapter, or PL/SQL failure after asynchronous acceptance is recorded against the `OIO_LOG_EVENT` child instance. It does not propagate back to a parent that has already continued.
+A mapping, Database Adapter, or PL/SQL failure after asynchronous acceptance remains on the `OIO_LOG_EVENT` child instance and does not propagate back to a parent that has already continued.
 
-The child must not invoke itself from its own fault path. Use native OIC monitoring, recovery, and an approved notification mechanism for logger failures.
+`OIO_LOG_EVENT` must not invoke itself from its own fault path. Use native Oracle Integration monitoring, recovery, and an approved notification mechanism for logger failures.
 
-## 5. Build `OIO_SAMPLE_BUSINESS_FLOW`
+## 5. `OIO_SAMPLE_BUSINESS_FLOW` design
 
-### 5.1 Trigger
-
-Use a REST trigger for simple testing. The parent may be synchronous or asynchronous according to the business use case; the logger remains asynchronous.
-
-| Operation | Method | Resource |
-|---|---|---|
-| `ProcessSampleTransaction` | `POST` | `/sample/transactions` |
+The sample parent demonstrates the handoff without making OIO persistence part of the business response path.
 
 Illustrative request:
 
@@ -127,116 +109,82 @@ Illustrative request:
 }
 ```
 
-This is the sample business request, not the OIO contract.
-
-### 5.2 Main orchestration
+This is a sample business request, not the OIO logging contract.
 
 ```mermaid
 sequenceDiagram
     participant Client
-    participant Sample as OIO_SAMPLE_BUSINESS_FLOW
+    participant Parent as OIO_SAMPLE_BUSINESS_FLOW
     participant Target as Simulated target
     participant Logger as OIO_LOG_EVENT
     participant DB as OIO_TRACE_API
 
-    Client->>Sample: Process sample transaction
-    Sample->>Sample: Assign correlation and business identifiers
-    Sample->>Target: Execute or simulate target operation
+    Client->>Parent: Process sample transaction
+    Parent->>Target: Execute or simulate target operation
 
     alt Success
-        Target-->>Sample: Successful response
-        Sample-)Logger: Asynchronous CreateTrace
-        Logger-->>Sample: Handoff accepted
-        Sample-->>Client: Business response
-        Logger->>DB: PR_CREATE_TRACE_LOG
+        Target-->>Parent: Successful response
+        Parent-)Logger: Asynchronous OIO event
+        Parent-->>Client: Business response
+        Logger->>DB: Persist independently
     else Fault
-        Target-->>Sample: Original fault
-        Sample-)Logger: Asynchronous error event
-        Logger-->>Sample: Handoff accepted
-        Sample-->>Client: Original business fault
-        Logger->>DB: PR_CREATE_TRACE_LOG
+        Target-->>Parent: Original fault
+        Parent-)Logger: Asynchronous error event
+        Parent-->>Client: Original business fault
+        Logger->>DB: Persist independently
     end
 ```
 
-The parent does not wait for the database operation. The detailed dispatch-failure and original-fault behavior is documented in the [fault-handler pattern](fault-handler-pattern.md).
+Use a repository sample integration key such as `SCM_PO_SYNC`, and map its attributes according to `OIO_INTEGRATION_CFG`.
 
-### 5.3 Sample configuration
-
-Use one repository sample integration key, such as:
-
-```text
-SCM_PO_SYNC
-```
-
-The mapping must follow the labels configured for that key in `OIO_INTEGRATION_CFG`. See the [mapping reference](mapping-reference.md).
-
-### 5.4 Status lifecycle demonstration
-
-Add a test path that invokes:
-
-```text
-OIO_LOG_EVENT.UpdateTransactionStatus
-```
-
-An illustrative lifecycle is:
+A lifecycle test may use values such as:
 
 ```text
 RECEIVED -> IN_PROGRESS -> FAILED -> RESOLVED
 ```
 
-These values are examples, not a global OIO status standard.
+These statuses are illustrative and are not a global OIO status standard.
 
 ## 6. Parent-to-child invocation
 
-Use the Local Integration adapter when both integrations are co-located. Select the active asynchronous child integration and map the canonical request.
+When parent and child integrations are co-located, use the Local Integration adapter to invoke the active `OIO_LOG_EVENT` integration and map the canonical request.
 
-The local asynchronous handoff keeps the database connection inside the shared logger and prevents each business integration from duplicating the database mapping.
+Keeping the database connection inside the reusable logger avoids duplicating Database Adapter mappings across business integrations.
 
-Activate and test `OIO_LOG_EVENT` before activating the parent integration.
+Activate and validate `OIO_LOG_EVENT` before activating dependent parent integrations.
 
-## 7. OIC tracking and operational monitoring
+## 7. Tracking and operational monitoring
 
-Recommended tracking fields for the sample flow:
-
-| Tracking field | Source |
-|---|---|
-| Primary | Business transaction identifier |
-| Secondary | Correlation identifier |
-| Tertiary | Source request or batch identifier |
-
-The parent and child are separate integration instances. Use the correlation and business identifiers to relate them operationally.
+Use business and correlation identifiers that allow parent and child instances to be related operationally. The parent and child remain separate Oracle Integration instances.
 
 Monitor at least:
 
-- asynchronous child failures;
-- recoverable child instances;
-- accepted events that did not produce database rows;
-- delays between the parent handoff and event persistence;
-- repeated failures caused by database or package unavailability.
+- failed or recoverable `OIO_LOG_EVENT` instances;
+- accepted events that do not produce the expected OIO record;
+- unusual persistence delays;
+- repeated database or package failures.
 
-## 8. Activation and test order
+## 8. Validation order
 
 1. Activate `OIO_LOG_EVENT`.
-2. Submit `CreateTrace` and confirm asynchronous acceptance.
-3. Verify the child instance and eventual database rows.
-4. Submit `UpdateTransactionStatus` and verify the appended event.
-5. Activate `OIO_SAMPLE_BUSINESS_FLOW`.
-6. Run success, business-error, technical-error, dispatch-failure, and child-runtime-failure scenarios.
-7. Compare the parent instance, child instance, and OIO database rows.
+2. Submit `CreateTrace`; verify the child instance and resulting trace/event records.
+3. Submit `UpdateTransactionStatus`; verify that a new event is appended to the existing trace.
+4. Activate `OIO_SAMPLE_BUSINESS_FLOW`.
+5. Run success, business-error, technical-error, handoff-failure, and child-runtime-failure scenarios.
+6. Compare the parent instance, child instance, and OIO database records.
+7. Record the Oracle Integration version, database version, and validation date.
 
-## 9. End-to-end acceptance criteria
+## 9. Acceptance criteria
 
-- [ ] The parent invokes `OIO_LOG_EVENT` asynchronously.
-- [ ] The parent does not wait for database persistence.
-- [ ] The parent receives no application-level success payload from the logger.
-- [ ] Parent and child appear as separate OIC instances.
-- [ ] A create event eventually produces one master trace and one initial event.
-- [ ] A status update eventually appends an event without creating a second master trace.
-- [ ] A child database failure does not change the already completed parent outcome.
-- [ ] A handoff failure does not replace the parent's original business fault.
-- [ ] Failed child instances can be identified and handled operationally.
-- [ ] OIC and database versions and the validation date are documented.
-- [ ] Published artifacts follow the repository security guidance.
+- [ ] Parent integrations invoke `OIO_LOG_EVENT` asynchronously.
+- [ ] Parent execution does not wait for database persistence.
+- [ ] Parent and child are observable as separate integration instances.
+- [ ] Create produces the expected master trace and initial event.
+- [ ] Status update appends an event without creating a second master trace.
+- [ ] A child runtime failure does not alter an already completed parent outcome.
+- [ ] A handoff failure does not replace the parent's original business or technical fault.
+- [ ] Failed child instances can be identified operationally.
+- [ ] Published artifacts contain no secrets or production-sensitive data.
 
 ## 10. Related documentation
 
@@ -252,3 +200,4 @@ Monitor at least:
 - [Differences between synchronous and asynchronous integrations](https://docs.oracle.com/en/cloud/paas/application-integration/integrations-user/differences-between-asynchronous-synchronous-integrations.html)
 - [Invoke a child integration from a parent integration](https://docs.oracle.com/en/cloud/paas/application-integration/integrations-user/invoke-co-located-integration-from-parent-integration-oic.html)
 - [Receive requests for multiple resources in a single REST Adapter trigger](https://docs.oracle.com/en/cloud/paas/application-integration/integrations-user/expose-multiple-operations-pick-action.html)
+- [Error-handling actions, including Throw New Fault and Re-throw Fault](https://docs.oracle.com/en/cloud/paas/application-integration/integrations-user/error-handling-category.html)

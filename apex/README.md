@@ -130,7 +130,7 @@ The export includes a readable representation to make application changes easier
 
 ### Payload Viewer
 
-![Payload Viewer](screenshots/transaction-event-history-payload_01.png)
+![Payload Viewer](screenshots/transaction-event_history-payload_01.png)
 
 ## Data protection
 

@@ -2,52 +2,34 @@
 
 ## 1. Purpose
 
-This document is the source of truth for OIC field mapping, JSON serialization, and Database Adapter result handling.
+This document is the source of truth for Oracle Integration field mapping and JSON serialization.
 
-The canonical property definitions, limits, and operation requirements are maintained in the [logging contract](../docs/logging-contract.md). Complete payload samples are maintained under [contracts/examples](../contracts/examples/README.md).
+Canonical property definitions, limits, required fields, matching rules, and database behavior are maintained in the [logging contract](../docs/logging-contract.md). Complete payload examples are maintained under [contracts/examples](../contracts/examples/README.md).
 
-## 2. Responsibility
+## 2. Mapping responsibility
 
-The parent business integration supplies the business and fault context and dispatches the request asynchronously to `OIO_LOG_EVENT`.
+The parent business integration supplies the business, execution, and fault context. `OIO_LOG_EVENT` preserves the flat field set, serializes it as JSON text, and maps the complete document to the `P_PAYLOAD` CLOB expected by `OIO_TRACE_API`.
 
-`OIO_LOG_EVENT`:
-
-1. preserves the flat field set;
-2. serializes it as JSON text;
-3. maps the JSON document to `P_PAYLOAD`;
-4. invokes the corresponding `OIO_TRACE_API` procedure;
-5. evaluates `O_STATUS`;
-6. completes normally when `O_STATUS = SUCCESS`;
-7. executes `Throw New Fault` when `O_STATUS != SUCCESS`, using `O_MESSAGE` as diagnostic context.
-
-Database parsing and normalization are handled by `OIO_TRACE_API` inside the asynchronous child instance. The parent business integration does not receive the database result.
+Runtime sequencing and post-invoke behavior are defined in the [implementation pattern](implementation-pattern.md).
 
 ## 3. Create trace mapping
 
-Operation:
+Operation: `OIO_LOG_EVENT.CreateTrace`
 
-```text
-OIO_LOG_EVENT.CreateTrace
-```
-
-Procedure:
-
-```text
-OIO_OWNER.OIO_TRACE_API.PR_CREATE_TRACE_LOG
-```
+Procedure: `OIO_OWNER.OIO_TRACE_API.PR_CREATE_TRACE_LOG`
 
 | JSON property | Typical OIC source | Mapping note |
 |---|---|---|
 | `integrationKey` | Constant, lookup, or project configuration | Must identify an active OIO configuration. |
-| `correlationId` | Incoming header, request ID, or generated reference | Propagate it across systems when possible. |
+| `correlationId` | Incoming header, request ID, or generated reference | Propagate across systems when possible. |
 | `oicInstanceId` | Current OIC flow ID | Required for trace creation. |
 | `userName` | Authenticated user or component name | Use `OIC` when no meaningful user is available. |
 | `logLevel` | Processing outcome | Use `I` or `E`. |
-| `summary` | Concise event description | Do not use it as a stack-trace store. |
+| `summary` | Concise event description | Do not use as a stack-trace store. |
 | `errorCode` | Business or technical code | Null for successful events. |
 | `errorMessage` | Sanitized error text | Null for successful events. |
 | `attr1Value` | Configured integration attribute | Required by the current package. |
-| `attr2Value`–`attr10Value` | Configured integration attributes | Populate only documented positions. |
+| `attr2Value`–`attr10Value` | Configured integration attributes | Populate according to `OIO_INTEGRATION_CFG`. |
 | `transactionId1` | Primary business identifier | Recommended. |
 | `transactionId2` | Secondary identifier | Optional. |
 | `transactionId3` | Tertiary or batch identifier | Optional. |
@@ -57,17 +39,9 @@ OIO_OWNER.OIO_TRACE_API.PR_CREATE_TRACE_LOG
 
 ## 4. Status update mapping
 
-Operation:
+Operation: `OIO_LOG_EVENT.UpdateTransactionStatus`
 
-```text
-OIO_LOG_EVENT.UpdateTransactionStatus
-```
-
-Procedure:
-
-```text
-OIO_OWNER.OIO_TRACE_API.PR_UPDATE_TRANSACTION_STATUS
-```
+Procedure: `OIO_OWNER.OIO_TRACE_API.PR_UPDATE_TRANSACTION_STATUS`
 
 | JSON property | Typical OIC source | Mapping note |
 |---|---|---|
@@ -85,7 +59,7 @@ OIO_OWNER.OIO_TRACE_API.PR_UPDATE_TRANSACTION_STATUS
 | `requestPayload` | Approved supporting content | Optional. |
 | `responsePayload` | Approved supporting content | Optional. |
 
-Use all business identifiers required to avoid unintended multi-row updates. The current package updates every trace that matches the supplied non-null identifiers.
+Use all business identifiers required to avoid unintended multi-trace updates. The package matches every supplied non-null transaction identifier.
 
 ## 5. Sample mapping
 
@@ -106,7 +80,7 @@ Confirm the actual `OIO_INTEGRATION_CFG` labels before implementation.
 
 ## 6. JSON serialization
 
-The Database Adapter receives the complete flat document as JSON text in the `P_PAYLOAD` CLOB.
+The Database Adapter receives the complete flat document as JSON text in `P_PAYLOAD`.
 
 Serialization rules:
 
@@ -119,7 +93,7 @@ Serialization rules:
 - use UTF-8;
 - validate the serialized document before invoking the database.
 
-Example of embedded JSON strings:
+Example:
 
 ```json
 {
@@ -128,46 +102,32 @@ Example of embedded JSON strings:
 }
 ```
 
-Payload storage is optional and must follow the [logging contract](../docs/logging-contract.md) and [security considerations](../README.md#security-considerations).
+Payload persistence is optional and must follow the [logging contract](../docs/logging-contract.md) and repository [security considerations](../README.md#security-considerations).
 
-## 7. Database result mapping
+## 7. Database Adapter outputs
 
-Both primary procedures return:
+Both primary procedures expose:
 
-| Database output | OIC use |
+| Output | Mapping purpose |
 |---|---|
-| `O_STATUS` | Controls the post-invoke decision. |
-| `O_MESSAGE` | Provides informational or diagnostic context. |
+| `O_STATUS` | Make the package result available to the child integration. |
+| `O_MESSAGE` | Make informational or diagnostic context available to the child integration. |
 
-Expected behavior:
-
-```text
-O_STATUS = SUCCESS
-    -> Complete the OIO_LOG_EVENT instance normally
-
-O_STATUS != SUCCESS
-    -> Execute Throw New Fault
-    -> Use O_MESSAGE as diagnostic context
-    -> Leave the asynchronous child instance failed for native OIC monitoring
-```
-
-`O_STATUS` and `O_MESSAGE` are not part of the flat JSON contract and are not returned to the parent business integration.
+These outputs are not part of the flat JSON contract and are not returned to the parent business integration. Their runtime use is defined in the [implementation pattern](implementation-pattern.md).
 
 ## 8. Mapping checklist
 
 - [ ] `integrationKey` exists and is active.
-- [ ] Attribute positions match the selected configuration.
+- [ ] Attribute positions match `OIO_INTEGRATION_CFG`.
 - [ ] `attr1Value` is populated for create operations.
-- [ ] `oicInstanceId` is captured.
+- [ ] `oicInstanceId` is captured for create operations.
 - [ ] `transactionStatus` is populated.
 - [ ] Status-update identifiers are sufficiently selective.
 - [ ] Successful events do not contain error values.
 - [ ] Error text is sanitized.
-- [ ] Optional payloads remain null unless approved.
-- [ ] The serialized document is valid JSON.
-- [ ] The complete JSON text is mapped to `P_PAYLOAD`.
-- [ ] `O_STATUS` is evaluated after the Database Adapter invoke.
-- [ ] `O_MESSAGE` is mapped into the fault diagnostic context when `O_STATUS != SUCCESS`.
+- [ ] Optional payloads remain null unless retention is approved.
+- [ ] The serialized document is valid JSON and is mapped completely to `P_PAYLOAD`.
+- [ ] `O_STATUS` and `O_MESSAGE` are available to the post-invoke flow.
 
 ## 9. Related documentation
 
