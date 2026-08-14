@@ -2,311 +2,117 @@
 
 A reference implementation for structured fault handling and business-oriented observability in Oracle Integration.
 
-Oracle Integration Observability (OIO) captures technical execution data together with business context, persists a searchable transaction history in Oracle Database, and provides a foundation for operational views, Oracle APEX applications, and Grafana dashboards.
+Oracle Integration Observability (OIO) captures technical execution data together with business context, persists a searchable transaction history in Oracle Database, and provides an operational console in Oracle APEX.
 
-> Project status: active development. The database artifacts and PL/SQL API are implemented but still require validation in a clean Oracle Database environment before the first tested release.
+> Project status: implementation v1 is complete in the reference environment. Clean-environment validation is still required before a tagged tested release.
 
 ## Why this project exists
 
-Native Oracle Integration monitoring is essential for troubleshooting integration instances, but support teams frequently need additional business context:
+Native Oracle Integration monitoring is essential for technical troubleshooting, but support teams often need additional business context such as transaction identifiers, lifecycle status, error details, and selected request or response payloads.
 
-- Which business transaction was processed?
-- Which Oracle Integration instance handled it?
-- What is the latest transaction status?
-- Which status changes occurred during the transaction lifecycle?
-- Was the event informational, a business error, or a technical error?
-- Was a sanitized request or response retained for investigation?
-
-OIO provides a structured persistence model for answering those questions without replacing Oracle Integration's native monitoring capabilities.
+OIO adds that context without replacing Oracle Integration native monitoring.
 
 ## Architecture overview
 
 ```mermaid
 flowchart LR
-    A[Source or business process] --> B[Oracle Integration flow]
-    B --> C[Build flat OIO payload]
-    C --> D[Oracle Database Adapter]
-    D --> E[OIO_TRACE_API]
+    A[Business integration] --> B[OIO_LOG_EVENT]
+    B --> C[Oracle Database Adapter]
+    C --> D[OIO_TRACE_API]
 
-    E --> F[(OIO_INTEGRATION_CFG)]
-    E --> G[(OIO_TRACE)]
-    E --> H[(OIO_TRACE_EVENT)]
-    E --> I[(OIO_TRACE_PAYLOAD)]
-
-    G --> J[OIO_V_TRACE_STATUS_HISTORY]
-    H --> J
-
-    J --> K[SQL and support queries]
-    J -. planned .-> L[Oracle APEX]
-    J -. planned .-> M[ORDS and Grafana]
+    D --> E[(OIO data model)]
+    E --> F[Operational views]
+    F --> G[Oracle APEX]
+    F -. planned .-> H[ORDS / Grafana]
 ```
 
-The canonical logging contract is intentionally flat. Oracle Integration maps the execution and business context into a single JSON object, while `OIO_TRACE_API` validates and normalizes the data into the database model.
+The canonical logging contract is intentionally flat. Oracle Integration maps execution and business context into a single JSON object, while `OIO_TRACE_API` validates and persists the information in the database model.
 
 For the complete design, see [Architecture](docs/architecture.md).
 
 ## Design principles
 
 - Business context is part of observability.
-- The canonical JSON contract remains flat to reduce mapping complexity in Oracle Integration.
+- The canonical JSON contract remains flat to reduce mapping complexity.
 - Integration-specific attributes and transaction identifiers are metadata-driven.
 - Master transaction data, chronological events, and optional payloads are stored separately.
 - Payload storage is optional and must be selective.
-- Oracle Integration can use a dedicated runtime schema with no direct table access.
-- A logging failure must not replace or hide the original business or technical fault.
+- Database access follows least privilege.
+- Observability persistence must not replace the original business or technical fault.
 
 ## Current components
 
 | Component | Status |
 |---|---|
-| Database model | Implemented; runtime validation pending |
-| PL/SQL API | Implemented; compilation and execution validation pending |
-| Flat JSON logging contract | Documented |
-| JSON examples | Available |
-| Architecture documentation | Available |
-| Oracle Integration implementation | Available |
+| Database model and PL/SQL API | Implemented |
+| Flat JSON logging contract and examples | Available |
+| Oracle Integration implementation and exports | Available |
 | Oracle APEX operational console | Available |
+| English / Brazilian Portuguese APEX translation | Available |
+| Clean-environment validation | Pending |
 | ORDS and Grafana extension | Planned |
-| Automated deployment and tests | Planned |
+| Automated deployment and regression tests | Planned |
 
 ## Repository structure
 
 ```text
 oracle-integration-observability/
+├── apex/
+│   ├── export/
+│   ├── install/
+│   ├── screenshots/
+│   └── translations/
+├── contracts/
+│   └── examples/
+├── database/
+│   ├── demo/
+│   └── install/
+├── docs/
+├── oic/
+│   ├── export/
+│   └── screenshot/
 ├── LICENSE
-├── README.md
-├── contracts
-│   └── examples
-│       ├── 01_create_success.json
-│       ├── 02_create_business_error.json
-│       ├── 03_create_technical_error.json
-│       ├── 04_create_po_sync_success.json
-│       ├── 05_update_status_resolved.json
-│       ├── 06_update_status_in_progress.json
-│       └── README.md
-├── database
-│   └── install
-│       ├── 00_oio_owner_creation.sql
-│       ├── 00_oio_runtime_creation.sql
-│       ├── 01_oio_integration_cfg.sql
-│       ├── 02_oio_trace.sql
-│       ├── 03_oio_trace_event.sql
-│       ├── 04_oio_trace_payload.sql
-│       ├── 05_oio_views.sql
-│       ├── README.md
-│       ├── oio_trace_api_pkb.sql
-│       ├── oio_trace_api_pks.sql
-│       ├── sample_data_oio.sql
-│       └── validation_queries_oio.sql
-├── docs
-│   ├── architecture.md
-│   └── logging-contract.md
-└── oic
-    ├── README.md
-    ├── connection-setup.md
-    ├── export
-    │   ├── OIO_LOG_EVENT_01.00.0000.iar
-    │   └── OIO_SAMPLE_BUSINESS_FLOW_01.00.0000.iar
-    ├── fault-handler-pattern.md
-    ├── implementation-pattern.md
-    ├── mapping-reference.md
-    └── screenshot
-        ├── OIO_LOG_EVENT_global_handling.png
-        ├── OIO_LOG_EVENT_main.png
-        ├── OIO_SAMPLE_BUSINESS_FLOW.png
-        └── OIO_TRACE_DB_connection.png
-
-
+└── README.md
 ```
 
-## Database model
+## Quick start
 
-OIO uses the following database objects:
+1. Review [database/install/README.md](database/install/README.md) and install the OIO database objects.
+2. Configure the Oracle Integration Database Adapter connection and import the artifacts under [`oic/export/`](oic/export/).
+3. Optionally load the synthetic demonstration data under [`database/demo/`](database/demo/).
+4. Optionally create the APEX parsing schema using [`apex/install/`](apex/install/) and import the application from [`apex/export/f101/`](apex/export/f101/).
+5. Run the supplied validation queries before adopting the implementation in another environment.
 
-| Object | Responsibility |
-|---|---|
-| `OIO_INTEGRATION_CFG` | Metadata-driven registry of integrations allowed to write to OIO |
-| `OIO_TRACE` | Master record for the traced business transaction |
-| `OIO_TRACE_EVENT` | Chronological event and transaction-status history |
-| `OIO_TRACE_PAYLOAD` | Optional request and response payloads linked to a specific event |
-| `OIO_V_TRACE_STATUS_HISTORY` | Support view combining stable transaction data with event history |
-| `OIO_TRACE_API` | Public PL/SQL interface used to validate and persist logging events |
-
-The database security model separates ownership from runtime access:
-
-- `OIO_OWNER` owns the database objects.
-- `OIO_RUNTIME` is optional and intended for the Oracle Integration connection.
-- `OIO_RUNTIME` receives `CREATE SESSION` and `EXECUTE` on `OIO_OWNER.OIO_TRACE_API`.
-- No direct table privileges are required for the runtime user.
-
-## Public PL/SQL API
-
-The current package exposes:
-
-```text
-OIO_TRACE_API.PR_CREATE_TRACE_LOG
-OIO_TRACE_API.PR_UPDATE_TRANSACTION_STATUS
-OIO_TRACE_API.REGISTER_EVENT_JSON
-```
-
-The package accepts the flat contract, validates the configured `integrationKey`, and normalizes the values into the master, event, and optional payload tables.
-
-## Logging contract
-
-The canonical contract uses:
-
-- `application/json`
-- UTF-8 encoding
-- camel-case property names
-- a flat top-level JSON object
-- string values for metadata-driven attributes
-- escaped JSON, XML, or text inside `requestPayload` and `responsePayload`
-
-Example:
-
-```json
-{
-  "integrationKey": "FIN_AP_PAYMENT_FLOW",
-  "correlationId": "AP-PAYMENT-2026-000184",
-  "oicInstanceId": "987654321001",
-  "userName": "OIC",
-  "logLevel": "I",
-  "summary": "Invoice payment request received successfully.",
-  "errorCode": null,
-  "errorMessage": null,
-  "attr1Value": "INV-100458",
-  "attr2Value": "SUP-00321",
-  "attr3Value": "Brazil Business Unit",
-  "attr4Value": "BRL",
-  "attr5Value": "15750.90",
-  "attr6Value": null,
-  "attr7Value": null,
-  "attr8Value": null,
-  "attr9Value": null,
-  "attr10Value": null,
-  "transactionId1": "INV-100458",
-  "transactionId2": "PAY-908771",
-  "transactionId3": "PAY-BATCH-20260805-01",
-  "transactionStatus": "RECEIVED",
-  "requestPayload": null,
-  "responsePayload": null
-}
-```
-
-See:
-
-- [Logging contract](docs/logging-contract.md)
-- [JSON examples](contracts/examples/README.md)
-
-## Prerequisites
-
-The current artifacts target an Oracle Database environment capable of supporting:
-
-- Oracle identity columns
-- interval-partitioned tables
-- PL/SQL packages
-- CLOB storage
-- the `APEX_JSON` package used by the current parser
-
-You also need:
-
-- a privileged database account to create the owner and optional runtime users;
-- a SQL client such as SQLcl, SQL*Plus, or Oracle Database Actions;
-- an Oracle Integration environment for the future end-to-end implementation;
-- a Database Adapter connection when the OIC artifacts are added.
-
-Because runtime validation is still pending, verify all scripts in a clean non-production environment before adopting them.
-
-## Database installation
-
-Review the detailed instructions in [database/install/README.md](database/install/README.md).
-
-High-level sequence:
-
-1. Create `OIO_OWNER`.
-2. Create the configuration, trace, event, and payload tables.
-3. Create the support view.
-4. Compile the `OIO_TRACE_API` package specification and body.
-5. Optionally create `OIO_RUNTIME` and grant package execution.
-6. Load sample configuration and events.
-7. Run the validation queries.
-
-Do not run the scripts in production before completing environment-specific review and validation.
-
-## Validation
-
-The repository currently includes:
-
-- `sample_data_oio.sql` for sample configuration and trace data;
-- `validation_queries_oio.sql` for model-level verification;
-- flat JSON examples for create and status-update operations.
-
-The first tested release should confirm:
-
-- all database objects compile as `VALID`;
-- the package accepts the documented JSON contract;
-- one create operation produces a master trace and an initial event;
-- optional request or response content produces a payload row;
-- status updates append chronological events;
-- `OIO_RUNTIME` can execute the package without direct table access;
-- the Oracle Integration Database Adapter can invoke the public API.
+The current implementation uses Oracle identity columns, interval-partitioned tables, PL/SQL packages, CLOB storage, and `APEX_JSON`.
 
 ## Documentation
 
 - [Architecture](docs/architecture.md)
 - [Logging contract](docs/logging-contract.md)
 - [Database installation](database/install/README.md)
-- [Flat JSON examples](contracts/examples/README.md)
+- [Oracle Integration implementation](oic/README.md)
+- [APEX operational console](apex/README.md)
+- [JSON examples](contracts/examples/README.md)
 
 ## Companion articles
 
 - [From Fault Handling to Observability: Building a Monitoring Framework with Oracle Integration Cloud](https://medium.com/@lcarmo2701/from-fault-handling-to-observability-building-a-monitoring-framework-with-oracle-integration-cloud-407b34755cd0)
 - [Beyond Technical Logs: Leveraging the Potential of Grafana with OIC](https://medium.com/@lcarmo2701/beyond-technical-logs-leveraging-the-potential-of-grafana-with-oic-bd653055e021)
 
-The first article introduces the core observability architecture. The second explores a future visualization and alerting extension using Grafana.
-
 ## Security considerations
 
-Never commit or publish:
+Do not publish credentials, wallets, private keys, tokens, private endpoints, or unmasked production data.
 
-- database passwords;
-- OCI wallets or private keys;
-- Oracle Integration credentials;
-- OAuth tokens or authorization headers;
-- production endpoints containing sensitive identifiers;
-- unmasked personal, financial, or regulated data;
-- complete production payloads when a reduced diagnostic representation is sufficient.
-
-Each implementation must comply with the data protection, privacy, and retention laws applicable to the countries and jurisdictions in which the solution operates. These requirements must be assessed within the specific business, legal, regulatory, and security context of each project.
-
-The storage of request and response payloads in CLOB columns is optional. Depending on their content, those payloads may contain personal, financial, confidential, regulated, or otherwise sensitive information. Persisting them without an appropriate legal basis, retention policy, access-control model, masking strategy, and deletion process may violate applicable data protection or data-retention requirements.
-
-For this reason, payload persistence must be explicitly reviewed and approved as part of the implementation design. Projects should determine whether payload storage is necessary, which fields may be retained, how sensitive values will be sanitized or masked, who may access the data, how long it will be stored, and how it will be securely deleted. When payload retention is not required, `requestPayload` and `responsePayload` should remain unset.
-
-Payload retention must therefore be intentional, minimal, and controlled. This reference implementation does not prescribe a universal retention period or legal interpretation; those decisions remain the responsibility of each implementing organization and should involve the appropriate legal, compliance, privacy, security, and data-governance stakeholders.
+Request and response payload persistence is optional and may contain personal, financial, confidential, or regulated information. Each implementation must define appropriate masking, access, retention, deletion, privacy, and compliance controls. When payload retention is not required, leave `requestPayload` and `responsePayload` unset.
 
 ## Known limitations
 
-- The database scripts and package still require clean-environment runtime validation.
-- No Oracle APEX application, ORDS endpoint, Grafana dashboard, or alert rule is included yet.
+- A clean-environment end-to-end validation has not yet been published.
+- No ORDS endpoint, Grafana dashboard, or alert rule is included.
 - Transaction statuses are business-defined and are not globally constrained by the database.
-- Attribute positions are generic and depend on metadata configured for each integration.
+- Generic attribute positions depend on the metadata configured for each integration.
 - A status update may affect multiple traces when the supplied transaction identifiers are not unique.
-- No automated purge or retention process is included.
-- No automated installation or regression test pipeline is included.
-
-## Contributing
-
-Issues and pull requests are welcome once the first validated release is available.
-
-When proposing a change:
-
-- keep the canonical contract flat;
-- preserve metadata-driven field behavior;
-- avoid environment-specific credentials and identifiers;
-- use anonymized sample data;
-- document database and Oracle Integration compatibility;
-- explain any change to public package behavior.
+- No automated purge, retention, installation, or regression-test pipeline is included.
 
 ## License
 
