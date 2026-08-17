@@ -4,7 +4,7 @@ A reference implementation for structured fault handling and business-oriented o
 
 Oracle Integration Observability (OIO) captures technical execution data together with business context, persists a searchable transaction history in Oracle Database, and provides an operational console in Oracle APEX.
 
-> Project status: implementation v1 is complete in the reference environment. Clean-environment validation is still required before a tagged tested release.
+> Project status: v1.0.0 is the published core reference implementation. The repository also documents an optional ORDS / Grafana extension. Clean-environment end-to-end validation has not yet been published.
 
 ## Why this project exists
 
@@ -23,7 +23,7 @@ flowchart LR
     D --> E[(OIO data model)]
     E --> F[Operational views]
     F --> G[Oracle APEX]
-    F -..-> H[ORDS / Grafana]
+    I -. optional extension .-> L[ORDS / Grafana]
 ```
 
 The canonical logging contract is intentionally flat. Oracle Integration maps execution and business context into a single JSON object, while `OIO_TRACE_API` validates and persists the information in the database model.
@@ -93,6 +93,7 @@ The current implementation uses Oracle identity columns, interval-partitioned ta
 - [Oracle Integration implementation](oic/README.md)
 - [APEX operational console](apex/README.md)
 - [JSON examples](contracts/examples/README.md)
+- [ORDS / Grafana extension](docs/grafana-extension.md)
 
 ## Companion articles
 
