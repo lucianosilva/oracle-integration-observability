@@ -66,7 +66,7 @@ flowchart LR
 
     I --> J[SQL / support queries]
     I --> K[Oracle APEX]
-    I -. future extension .-> L[ORDS / Grafana]
+    I -. optional extension .-> L[ORDS / Grafana]
 ```
 
 A successful asynchronous handoff confirms that Oracle Integration accepted the child request. It does not guarantee that the later database write completed successfully.
@@ -168,7 +168,6 @@ No automatic purge job or universal retention period is included. Retention rema
 - Generic attribute positions require metadata configuration for each integration.
 - Status-update matching can affect multiple traces when the supplied identifiers are not unique.
 - JSON is the canonical contract; the package also contains XML compatibility parsing.
-- ORDS, Grafana, external alerting, automated purge, and automated regression testing are not included in v1.
 
 ## 11. Related documentation
 
@@ -177,3 +176,4 @@ No automatic purge job or universal retention period is included. Retention rema
 - [Oracle Integration implementation](../oic/README.md)
 - [APEX operational console](../apex/README.md)
 - [JSON examples](../contracts/examples/README.md)
+- [ORDS / Grafana extension](docs/grafana-extension.md)
