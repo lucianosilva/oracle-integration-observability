@@ -23,7 +23,7 @@ flowchart LR
     D --> E[(OIO data model)]
     E --> F[Operational views]
     F --> G[Oracle APEX]
-    F -. future extension .-> H[ORDS / Grafana]
+    F -..-> H[ORDS / Grafana]
 ```
 
 The canonical logging contract is intentionally flat. Oracle Integration maps execution and business context into a single JSON object, while `OIO_TRACE_API` validates and persists the information in the database model.
@@ -50,7 +50,7 @@ For the complete design, see [Architecture](docs/architecture.md).
 | Oracle APEX operational console | Available |
 | English / Brazilian Portuguese APEX translation | Available |
 | Clean-environment validation | Required before a tagged tested release |
-| ORDS and Grafana extension | Outside v1 |
+| ORDS and Grafana extension | Available |
 | Automated deployment and regression tests | Outside v1 |
 
 ## Repository structure
@@ -108,7 +108,6 @@ Request and response payload persistence is optional and may contain personal, f
 ## Known limitations
 
 - A clean-environment end-to-end validation has not yet been published.
-- No ORDS endpoint, Grafana dashboard, or alert rule is included.
 - Transaction statuses are business-defined and are not globally constrained by the database.
 - Generic attribute positions depend on the metadata configured for each integration.
 - A status update may affect multiple traces when the supplied transaction identifiers are not unique.
